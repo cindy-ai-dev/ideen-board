@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useBoard } from '../lib/storage'
 import { categoryColor } from './TileCard'
+import { ShoppingListSection } from './ShoppingListSection'
 
 function formatPartyDate(date: string, time: string): string {
   if (!date) return 'Ohne Datum'
@@ -199,6 +200,13 @@ export function BoardPlanView({
             </p>
           )}
         </section>
+
+        <div className="border-t border-orange-100 pt-5 print:border-stone-300">
+          <ShoppingListSection
+            items={board.shoppingList}
+            selectedIdeasCount={board.tiles.filter((tile) => tile.selected).length}
+          />
+        </div>
       </section>
     </div>
   )

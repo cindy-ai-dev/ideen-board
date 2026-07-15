@@ -4,9 +4,15 @@ import {
   MODEL,
   SYSTEM_START,
   SYSTEM_MORE,
+  SHOPPING_SCHEMA,
+  SYSTEM_SHOPPING,
   buildStartUserMessage,
   buildMoreUserMessage,
+  buildShoppingUserMessage,
+  buildShoppingUserMessageCompact,
   type RawIdea,
+  type RawShoppingItem,
+  type ShoppingSourceTile,
 } from './prompts'
 
 // Zwei Wege zum selben Ziel:
@@ -20,7 +26,13 @@ import {
 //
 // import.meta.env.DEV ist Vites eingebauter Schalter dafür.
 
-async function callOpenAIDirect(system: string, userMessage: string): Promise<RawIdea[]> {
+async function callOpenAIDirect<T>(
+  system: string,
+  userMessage: string,
+  schema: typeof IDEAS_SCHEMA | typeof SHOPPING_SCHEMA,
+  name: string,
+  maxOutputTokens = 1800
+): Promise<T> {
   // SDK nur im Dev-Modus laden – so landet es gar nicht erst im
   // veröffentlichten Bundle (kleiner + kein Key-Code beim Besucher).
   const { default: OpenAI } = await import('openai')
@@ -31,15 +43,15 @@ async function callOpenAIDirect(system: string, userMessage: string): Promise<Ra
 
   const response = await client.responses.create({
     model: MODEL,
-    max_output_tokens: 1200,
+    max_output_tokens: maxOutputTokens,
     instructions: system,
     input: userMessage,
     text: {
       format: {
         type: 'json_schema',
-        name: 'ideas',
+        name,
         strict: true,
-        schema: IDEAS_SCHEMA,
+        schema,
       },
     },
   })
@@ -47,17 +59,22 @@ async function callOpenAIDirect(system: string, userMessage: string): Promise<Ra
   if (!response.output_text) {
     throw new Error('Keine Antwort von der API erhalten')
   }
-  return (JSON.parse(response.output_text) as { ideas: RawIdea[] }).ideas
+  return JSON.parse(response.output_text) as T
 }
 
-async function callProxy(endpoint: string, body: object): Promise<RawIdea[]> {
+function isTruncatedJsonError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return /JSON|unterminated|unexpected end|end of JSON/i.test(error.message)
+}
+
+async function callProxy<T>(endpoint: string, body: object): Promise<T> {
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error('Ideen konnten nicht geladen werden')
-  return ((await res.json()) as { ideas: RawIdea[] }).ideas
+  return (await res.json()) as T
 }
 
 function toTiles(ideas: RawIdea[], boardId: string, forceCategory?: string): Tile[] {
@@ -81,10 +98,15 @@ export async function generateIdeas(
   partyDetails: PartyDetails,
   boardId: string
 ): Promise<Tile[]> {
-  const ideas = import.meta.env.DEV
-    ? await callOpenAIDirect(SYSTEM_START, buildStartUserMessage(topic, partyDetails))
-    : await callProxy('/api/ideas', { topic, partyDetails })
-  return toTiles(ideas, boardId)
+  const result = import.meta.env.DEV
+    ? await callOpenAIDirect<{ ideas: RawIdea[] }>(
+        SYSTEM_START,
+        buildStartUserMessage(topic, partyDetails),
+        IDEAS_SCHEMA,
+        'ideas'
+      )
+    : await callProxy<{ ideas: RawIdea[] }>('/api/ideas', { topic, partyDetails })
+  return toTiles(result.ideas, boardId)
 }
 
 export async function generateMoreIdeas(
@@ -94,11 +116,54 @@ export async function generateMoreIdeas(
   existingTitles: string[],
   boardId: string
 ): Promise<Tile[]> {
-  const ideas = import.meta.env.DEV
-    ? await callOpenAIDirect(
+  const result = import.meta.env.DEV
+    ? await callOpenAIDirect<{ ideas: RawIdea[] }>(
         SYSTEM_MORE,
-        buildMoreUserMessage(topic, partyDetails, category, existingTitles)
+        buildMoreUserMessage(topic, partyDetails, category, existingTitles),
+        IDEAS_SCHEMA,
+        'ideas'
       )
-    : await callProxy('/api/more-ideas', { topic, partyDetails, category, existingTitles })
-  return toTiles(ideas, boardId, category)
+    : await callProxy<{ ideas: RawIdea[] }>('/api/more-ideas', {
+        topic,
+        partyDetails,
+        category,
+        existingTitles,
+      })
+  return toTiles(result.ideas, boardId, category)
+}
+
+export async function generateShoppingList(
+  topic: string,
+  partyDetails: PartyDetails,
+  selectedTiles: ShoppingSourceTile[]
+): Promise<RawShoppingItem[]> {
+  if (import.meta.env.DEV) {
+    try {
+      const result = await callOpenAIDirect<{ items: RawShoppingItem[] }>(
+        SYSTEM_SHOPPING,
+        buildShoppingUserMessage(topic, partyDetails, selectedTiles),
+        SHOPPING_SCHEMA,
+        'shopping_items',
+        1800
+      )
+      return result.items
+    } catch (error) {
+      if (!isTruncatedJsonError(error)) throw error
+      const retry = await callOpenAIDirect<{ items: RawShoppingItem[] }>(
+        SYSTEM_SHOPPING,
+        buildShoppingUserMessageCompact(topic, partyDetails, selectedTiles),
+        SHOPPING_SCHEMA,
+        'shopping_items',
+        900
+      )
+      return retry.items
+    }
+  }
+
+  const response = await callProxy<{ items: RawShoppingItem[] }>('/api/shopping-list', {
+    topic,
+    partyDetails,
+    selectedTiles,
+  })
+  return response.items
 }

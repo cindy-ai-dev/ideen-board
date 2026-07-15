@@ -8,6 +8,7 @@ import {
   type BoardState,
   type Guest,
   type PartyDetails,
+  type ShoppingListItem,
   type Tile,
 } from '../types'
 
@@ -83,6 +84,23 @@ function normalizeTile(value: unknown, boardId: string): Tile | null {
   }
 }
 
+function normalizeShoppingListItem(value: unknown): ShoppingListItem | null {
+  if (!isObject(value)) return null
+  const label = typeof value.label === 'string' ? value.label.trim() : ''
+  if (!label) return null
+  const section = typeof value.section === 'string' && value.section.trim() ? value.section.trim() : 'Sonstiges'
+  const source = value.source === 'manual' ? 'manual' : 'ai'
+  return {
+    id: typeof value.id === 'string' && value.id.trim() ? value.id : crypto.randomUUID(),
+    section,
+    label,
+    note: typeof value.note === 'string' && value.note.trim() ? value.note.trim() : undefined,
+    checked: typeof value.checked === 'boolean' ? value.checked : false,
+    source,
+    createdAt: typeof value.createdAt === 'number' ? value.createdAt : Date.now(),
+  }
+}
+
 function normalizeBoard(raw: unknown, boardId: string): BoardState {
   if (!isObject(raw)) return createEmptyBoard()
 
@@ -99,6 +117,11 @@ function normalizeBoard(raw: unknown, boardId: string): BoardState {
       ? raw.tiles
           .map((tile) => normalizeTile(tile, boardId))
           .filter((tile): tile is Tile => tile !== null)
+      : [],
+    shoppingList: Array.isArray(raw.shoppingList)
+      ? raw.shoppingList
+          .map((item) => normalizeShoppingListItem(item))
+          .filter((item): item is ShoppingListItem => item !== null)
       : [],
   }
 }

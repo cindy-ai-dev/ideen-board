@@ -31,10 +31,21 @@ export interface PartyDetails {
   guests: Guest[]
 }
 
+export interface ShoppingListItem {
+  id: string
+  section: string
+  label: string
+  note?: string
+  checked: boolean
+  source: 'ai' | 'manual'
+  createdAt: number
+}
+
 export interface BoardState {
   topic: string
   partyDetails: PartyDetails
   tiles: Tile[]
+  shoppingList: ShoppingListItem[]
 }
 
 // Ein Eintrag in der Board-Liste. Der Inhalt (Kacheln) liegt separat
@@ -67,6 +78,7 @@ export function createEmptyBoard(): BoardState {
     topic: '',
     partyDetails: createEmptyPartyDetails(),
     tiles: [],
+    shoppingList: [],
   }
 }
 

@@ -1,12 +1,50 @@
 import { useMemo, useState, type DragEvent } from 'react'
 import type { PartyDetails, Tile } from '../types'
 import { useBoard } from '../lib/storage'
-import { generateIdeas, generateMoreIdeas } from '../lib/claude'
+import { generateIdeas, generateMoreIdeas, generateShoppingList } from '../lib/claude'
 import { fetchLinkPreview } from '../lib/og'
 import { summarizePartyDetails } from '../lib/prompts'
 import { TileCard, categoryColor } from './TileCard'
 import { TileEditor } from './TileEditor'
 import { PartyDetailsFields } from './PartyDetailsFields'
+import { ShoppingListSection } from './ShoppingListSection'
+import type { RawShoppingItem, ShoppingSourceTile } from '../lib/prompts'
+import type { ShoppingListItem } from '../types'
+
+function normalizeShoppingKey(section: string, label: string): string {
+  return `${section.trim().toLowerCase()}::${label.trim().toLowerCase()}`
+}
+
+function mergeShoppingSuggestions(
+  current: ShoppingListItem[],
+  suggestions: RawShoppingItem[]
+): ShoppingListItem[] {
+  const currentByKey = new Map(current.map((item) => [normalizeShoppingKey(item.section, item.label), item]))
+  const manualItems = current.filter((item) => item.source === 'manual')
+  const next: ShoppingListItem[] = [...manualItems]
+  const seen = new Set(next.map((item) => normalizeShoppingKey(item.section, item.label)))
+
+  for (const suggestion of suggestions) {
+    const label = suggestion.label.trim()
+    if (!label) continue
+    const section = suggestion.section.trim() || 'Sonstiges'
+    const key = normalizeShoppingKey(section, label)
+    if (seen.has(key)) continue
+    const existing = currentByKey.get(key)
+    next.push({
+      id: existing?.id ?? crypto.randomUUID(),
+      section,
+      label,
+      note: suggestion.note.trim() || undefined,
+      checked: existing?.checked ?? false,
+      source: 'ai',
+      createdAt: existing?.createdAt ?? Date.now(),
+    })
+    seen.add(key)
+  }
+
+  return next
+}
 
 // Die komplette Ansicht EINES Boards. Wird in App per key={boardId}
 // eingebunden – beim Board-Wechsel baut React die Komponente neu auf
@@ -16,6 +54,7 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
   const [urlInput, setUrlInput] = useState('')
   const [loadingIdeas, setLoadingIdeas] = useState(false)
   const [loadingLink, setLoadingLink] = useState(false)
+  const [loadingShopping, setLoadingShopping] = useState(false)
   // Welche Kategorie gerade Nachschub lädt (null = keine)
   const [loadingMore, setLoadingMore] = useState<string | null>(null)
   // Editor: 'new' = neue eigene Kachel, Tile = diese Kachel bearbeiten
@@ -98,6 +137,36 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
     }
   }
 
+  async function handleGenerateShoppingList() {
+    if (loadingShopping) return
+    const selectedTiles: ShoppingSourceTile[] = board.tiles
+      .filter((tile) => tile.selected)
+      .map((tile) => ({
+        title: tile.title,
+        description: tile.description,
+        category: tile.category,
+      }))
+
+    if (selectedTiles.length === 0) {
+      setError('Markiere zuerst einige Ideen als ausgewählt, damit daraus eine Einkaufsliste erzeugt werden kann.')
+      return
+    }
+
+    setError(null)
+    setLoadingShopping(true)
+    try {
+      const suggestions = await generateShoppingList(board.topic, board.partyDetails, selectedTiles)
+      setBoard((current) => ({
+        ...current,
+        shoppingList: mergeShoppingSuggestions(current.shoppingList, suggestions),
+      }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Einkaufsliste konnte nicht geladen werden')
+    } finally {
+      setLoadingShopping(false)
+    }
+  }
+
   function handleDelete(id: string) {
     setBoard((current) => ({ ...current, tiles: current.tiles.filter((t) => t.id !== id) }))
   }
@@ -106,6 +175,39 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
     setBoard((current) => ({
       ...current,
       tiles: current.tiles.map((t) => (t.id === id ? { ...t, selected: !t.selected } : t)),
+    }))
+  }
+
+  function handleToggleShoppingItem(id: string) {
+    setBoard((current) => ({
+      ...current,
+      shoppingList: current.shoppingList.map((item) =>
+        item.id === id ? { ...item, checked: !item.checked } : item
+      ),
+    }))
+  }
+
+  function handleAddShoppingItem(item: { label: string; section: string }) {
+    setBoard((current) => ({
+      ...current,
+      shoppingList: [
+        ...current.shoppingList,
+        {
+          id: crypto.randomUUID(),
+          section: item.section,
+          label: item.label,
+          checked: false,
+          source: 'manual',
+          createdAt: Date.now(),
+        },
+      ],
+    }))
+  }
+
+  function handleRemoveShoppingItem(id: string) {
+    setBoard((current) => ({
+      ...current,
+      shoppingList: current.shoppingList.filter((item) => item.id !== id),
     }))
   }
 
@@ -301,6 +403,19 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
             </section>
           )
         })}
+      </div>
+
+      <div className="mt-12">
+        <ShoppingListSection
+          items={board.shoppingList}
+          editable
+          generating={loadingShopping}
+          selectedIdeasCount={board.tiles.filter((tile) => tile.selected).length}
+          onGenerate={handleGenerateShoppingList}
+          onToggleItem={handleToggleShoppingItem}
+          onAddItem={handleAddShoppingItem}
+          onRemoveItem={handleRemoveShoppingItem}
+        />
       </div>
 
       {editor !== null && (

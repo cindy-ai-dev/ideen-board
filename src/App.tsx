@@ -256,6 +256,7 @@ export default function App() {
                     topic: details.forWhom,
                     partyDetails: details,
                     tiles: [],
+                    shoppingList: [],
                   })
                   setDialog(null)
                 }}
