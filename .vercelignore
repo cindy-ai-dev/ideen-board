@@ -1,0 +1,5 @@
+# Der API-Key darf NIEMALS mit hochgeladen werden – auf dem Server
+# kommt er als Umgebungsvariable rein, nicht als Datei.
+.env.local
+.env
+.claude
