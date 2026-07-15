@@ -198,18 +198,18 @@ function saveLocalRegistryFromRecords(records: BoardRecord[]) {
   }
 }
 
-async function migrateLocalBoardsToRemote(): Promise<BoardMeta[]> {
+async function migrateLocalBoardsToRemote(): Promise<BoardRecord[]> {
   const localBoards = readRegistryCache()
   if (localBoards.length === 0) return []
 
-  const migrated: BoardMeta[] = []
+  const migrated: BoardRecord[] = []
   for (const board of localBoards) {
     const state = readBoardCache(board.id)
     const record = await saveBoardRemote(board.id, board.name, state)
-    migrated.push(boardMetaFromRecord(record))
+    migrated.push(record)
     saveLocalBoard(record.id, record.data)
   }
-  writeRegistryCache(migrated)
+  writeRegistryCache(migrated.map(boardMetaFromRecord))
   return migrated
 }
 
@@ -230,10 +230,7 @@ export function loadBoard(boardId: string): BoardState {
 // Beides wird im localStorage als schneller Cache gespiegelt und in Postgres
 // synchron gehalten.
 export function useBoards() {
-  const [boards, setBoards] = useState<BoardMeta[]>(() => {
-    const cached = readRegistryCache()
-    return cached.length > 0 ? cached : []
-  })
+  const [boards, setBoards] = useState<BoardRecord[]>([])
   const [, bumpSyncTick] = useState(0)
   const [activeId, setActiveIdState] = useState<string>(() => {
     const urlBoard = getActiveIdFromUrl()
@@ -263,6 +260,19 @@ export function useBoards() {
   useEffect(() => {
     let cancelled = false
 
+    function recordsFromCachedRegistry(): BoardRecord[] {
+      return readRegistryCache().map((meta) => {
+        const data = readBoardCache(meta.id)
+        return {
+          id: meta.id,
+          name: meta.name,
+          data,
+          createdAt: meta.createdAt,
+          updatedAt: meta.createdAt,
+        }
+      })
+    }
+
     async function hydrate() {
       try {
         const remoteBoards = await fetchBoards()
@@ -270,7 +280,7 @@ export function useBoards() {
 
         if (remoteBoards.length > 0) {
           saveLocalRegistryFromRecords(remoteBoards)
-          setBoards(remoteBoards.map(boardMetaFromRecord))
+          setBoards(remoteBoards)
           if (!remoteBoards.some((board) => board.id === activeIdRef.current)) {
             setActiveIdState(remoteBoards[0].id)
           }
@@ -279,10 +289,9 @@ export function useBoards() {
           if (cancelled) return
 
           if (migrated.length > 0) {
-            const nextBoards = migrated
-            setBoards(nextBoards)
-            if (!nextBoards.some((board) => board.id === activeIdRef.current)) {
-              setActiveIdState(nextBoards[0].id)
+            setBoards(migrated)
+            if (!migrated.some((board) => board.id === activeIdRef.current)) {
+              setActiveIdState(migrated[0].id)
             }
           } else {
             const freshState = createEmptyBoard()
@@ -290,24 +299,31 @@ export function useBoards() {
             const freshRecord = await saveBoardRemote(freshId, 'Neues Board', freshState)
             if (cancelled) return
             saveLocalRegistryFromRecords([freshRecord])
-            setBoards([boardMetaFromRecord(freshRecord)])
+            setBoards([freshRecord])
             setActiveIdState(freshRecord.id)
           }
         }
       } catch {
-        const cached = readRegistryCache()
-          if (!cancelled) {
-            if (cached.length > 0) {
-              setBoards(cached)
-              if (!cached.some((board) => board.id === activeIdRef.current)) {
-                setActiveIdState(cached[0].id)
-              }
-            } else {
-              const freshState = createEmptyBoard()
-            const freshBoard = boardMetaFromState(crypto.randomUUID(), freshState)
-            ensureLocalBoard(freshBoard.id, freshState)
-            setBoards([freshBoard])
-            setActiveIdState(freshBoard.id)
+        if (!cancelled) {
+          const cached = recordsFromCachedRegistry()
+          if (cached.length > 0) {
+            setBoards(cached)
+            if (!cached.some((board) => board.id === activeIdRef.current)) {
+              setActiveIdState(cached[0].id)
+            }
+          } else {
+            const freshState = createEmptyBoard()
+            const freshId = crypto.randomUUID()
+            const freshRecord = {
+              id: freshId,
+              name: 'Neues Board',
+              data: freshState,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            }
+            ensureLocalBoard(freshRecord.id, freshState)
+            setBoards([freshRecord])
+            setActiveIdState(freshRecord.id)
           }
         }
       } finally {
@@ -329,7 +345,7 @@ export function useBoards() {
         try {
           const remoteBoards = await fetchBoards()
           saveLocalRegistryFromRecords(remoteBoards)
-          setBoards(remoteBoards.map(boardMetaFromRecord))
+          setBoards(remoteBoards)
           if (remoteBoards.length > 0 && !remoteBoards.some((board) => board.id === activeIdRef.current)) {
             setActiveIdState(remoteBoards[0].id)
           }
@@ -348,23 +364,25 @@ export function useBoards() {
 
   async function createBoard(name: string, initialState: BoardState = createEmptyBoard()) {
     const boardId = crypto.randomUUID()
-    const meta: BoardMeta = {
+    const localRecord: BoardRecord = {
       id: boardId,
       name,
+      data: initialState,
       createdAt: Date.now(),
+      updatedAt: Date.now(),
     }
-    const nextBoards = [...boards, meta]
+    const nextBoards = [...boards, localRecord]
     setBoards(nextBoards)
     setActiveIdState(boardId)
     ensureLocalBoard(boardId, initialState)
     try {
       const record = await saveBoardRemote(boardId, name, initialState)
       saveLocalBoard(record.id, record.data)
-      const nextRegistry = nextBoards.map((board) => (board.id === record.id ? boardMetaFromRecord(record) : board))
+      const nextRegistry = nextBoards.map((board) => (board.id === record.id ? record : board))
       writeRegistryCache(nextRegistry)
       setBoards(nextRegistry)
     } catch {
-      writeRegistryCache(nextBoards)
+      writeRegistryCache(nextBoards.map(boardMetaFromRecord))
     }
   }
 
@@ -393,15 +411,21 @@ export function useBoards() {
     if (rest.length === 0) {
       const freshState = createEmptyBoard()
       const freshId = crypto.randomUUID()
-      const fresh: BoardMeta = { id: freshId, name: 'Neues Board', createdAt: Date.now() }
+      const fresh: BoardRecord = {
+        id: freshId,
+        name: 'Neues Board',
+        data: freshState,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
       setBoards([fresh])
       setActiveIdState(freshId)
       ensureLocalBoard(freshId, freshState)
       try {
         await saveBoardRemote(freshId, fresh.name, freshState)
-        writeRegistryCache([fresh])
+        writeRegistryCache([boardMetaFromRecord(fresh)])
       } catch {
-        writeRegistryCache([fresh])
+        writeRegistryCache([boardMetaFromRecord(fresh)])
       }
       return
     }

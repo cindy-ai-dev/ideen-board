@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { loadBoard, useBoards } from './lib/storage'
+import { useBoards } from './lib/storage'
 import { BoardView } from './components/BoardView'
 import { NameDialog } from './components/NameDialog'
 import { PartyDetailsFields } from './components/PartyDetailsFields'
@@ -53,7 +53,7 @@ export default function App() {
     return boards
       .map((board) => ({
         meta: board,
-        details: loadBoard(board.id).partyDetails,
+        details: board.data.partyDetails,
       }))
       .sort((a, b) => {
         const left = parsePartyDate(a.details)
