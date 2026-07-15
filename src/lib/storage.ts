@@ -9,6 +9,7 @@ import {
   type BoardState,
   type Guest,
   type PartyDetails,
+  type PlanningTaskItem,
   type ShoppingListItem,
   type Tile,
 } from '../types'
@@ -121,6 +122,23 @@ function normalizeShoppingListItem(value: unknown): ShoppingListItem | null {
   }
 }
 
+function normalizePlanningTaskItem(value: unknown): PlanningTaskItem | null {
+  if (!isObject(value)) return null
+  const title = typeof value.title === 'string' ? value.title.trim() : ''
+  if (!title) return null
+  const dueDate = typeof value.dueDate === 'string' ? value.dueDate.trim() : ''
+  return {
+    id: typeof value.id === 'string' && value.id.trim() ? value.id : crypto.randomUUID(),
+    title,
+    note: typeof value.note === 'string' && value.note.trim() ? value.note.trim() : undefined,
+    daysBeforeParty: parseNonNegativeInteger(value.daysBeforeParty),
+    dueDate: dueDate ? dueDate : null,
+    checked: typeof value.checked === 'boolean' ? value.checked : false,
+    source: value.source === 'manual' ? 'manual' : 'ai',
+    createdAt: typeof value.createdAt === 'number' ? value.createdAt : Date.now(),
+  }
+}
+
 function normalizeBoard(raw: unknown, boardId: string): BoardState {
   if (!isObject(raw)) return createEmptyBoard()
 
@@ -142,6 +160,11 @@ function normalizeBoard(raw: unknown, boardId: string): BoardState {
       ? raw.shoppingList
           .map((item) => normalizeShoppingListItem(item))
           .filter((item): item is ShoppingListItem => item !== null)
+      : [],
+    planningTasks: Array.isArray(raw.planningTasks)
+      ? raw.planningTasks
+          .map((item) => normalizePlanningTaskItem(item))
+          .filter((item): item is PlanningTaskItem => item !== null)
       : [],
     rsvpToken: typeof raw.rsvpToken === 'string' && raw.rsvpToken.trim() ? raw.rsvpToken : createRsvpToken(),
   }

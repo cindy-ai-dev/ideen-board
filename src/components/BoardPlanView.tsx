@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useBoard } from '../lib/storage'
 import { categoryColor } from './TileCard'
 import { ShoppingListSection } from './ShoppingListSection'
+import { TaskTimelineSection } from './TaskTimelineSection'
 
 function formatPartyDate(date: string, time: string): string {
   if (!date) return 'Ohne Datum'
@@ -49,6 +50,7 @@ export function BoardPlanView({
     (sum, item) => sum + (typeof item.priceEuro === 'number' ? item.priceEuro : 0),
     0
   )
+  const planningTaskCount = board.planningTasks.length
   const budgetLimit = board.partyDetails.budgetLimitEuro
   const euro = new Intl.NumberFormat('de-DE', {
     style: 'currency',
@@ -100,6 +102,7 @@ export function BoardPlanView({
           <InfoCard label="Datum" value={formatPartyDate(board.partyDetails.date, board.partyDetails.time)} />
           <InfoCard label="Uhrzeit" value={board.partyDetails.time || 'Nicht gesetzt'} />
           <InfoCard label="Gästezahl" value={guestCountLabel} />
+          <InfoCard label="Zeitplan-Aufgaben" value={`${planningTaskCount}`} />
           <InfoCard label="Einkaufskosten" value={budgetText} />
         </div>
 
@@ -216,6 +219,10 @@ export function BoardPlanView({
               Noch keine ausgewählten Ideen markiert.
             </p>
           )}
+        </section>
+
+        <section className="border-t border-orange-100 pt-5 print:border-stone-300">
+          <TaskTimelineSection items={board.planningTasks} partyDetails={board.partyDetails} />
         </section>
 
         <div className="border-t border-orange-100 pt-5 print:border-stone-300">

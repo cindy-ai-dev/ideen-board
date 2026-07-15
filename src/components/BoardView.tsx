@@ -2,15 +2,16 @@ import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import type { PartyDetails, Tile } from '../types'
 import { useBoard } from '../lib/storage'
 import { saveBoard as saveBoardRemote } from '../lib/boardApi'
-import { generateIdeas, generateMoreIdeas, generateShoppingList } from '../lib/claude'
+import { generateIdeas, generateMoreIdeas, generatePlanningTasks, generateShoppingList } from '../lib/claude'
 import { fetchLinkPreview } from '../lib/og'
 import { summarizePartyDetails } from '../lib/prompts'
 import { TileCard, categoryColor } from './TileCard'
 import { TileEditor } from './TileEditor'
 import { PartyDetailsFields } from './PartyDetailsFields'
 import { ShoppingListSection } from './ShoppingListSection'
+import { TaskTimelineSection } from './TaskTimelineSection'
 import type { RawShoppingItem, ShoppingSourceTile } from '../lib/prompts'
-import { createRsvpToken, type ShoppingListItem } from '../types'
+import { createRsvpToken, type PlanningTaskItem, type ShoppingListItem } from '../types'
 
 function normalizeShoppingKey(section: string, label: string): string {
   return `${section.trim().toLowerCase()}::${label.trim().toLowerCase()}`
@@ -59,6 +60,40 @@ function mergeShoppingSuggestions(
   return next
 }
 
+function mergePlanningSuggestions(
+  current: PlanningTaskItem[],
+  suggestions: { title: string; note: string; daysBeforeParty: number }[]
+): PlanningTaskItem[] {
+  const currentByKey = new Map(current.map((item) => [item.title.trim().toLowerCase(), item]))
+  const manualItems = current.filter((item) => item.source === 'manual')
+  const next: PlanningTaskItem[] = [...manualItems]
+  const seen = new Set(next.map((item) => item.title.trim().toLowerCase()))
+
+  for (const suggestion of suggestions) {
+    const title = suggestion.title.trim()
+    if (!title) continue
+    const key = title.toLowerCase()
+    if (seen.has(key)) continue
+    const existing = currentByKey.get(key)
+    next.push({
+      id: existing?.id ?? crypto.randomUUID(),
+      title,
+      note: suggestion.note.trim() || undefined,
+      daysBeforeParty:
+        typeof suggestion.daysBeforeParty === 'number' && Number.isFinite(suggestion.daysBeforeParty)
+          ? Math.max(0, Math.round(suggestion.daysBeforeParty))
+          : existing?.daysBeforeParty ?? null,
+      dueDate: existing?.dueDate ?? null,
+      checked: existing?.checked ?? false,
+      source: 'ai',
+      createdAt: existing?.createdAt ?? Date.now(),
+    })
+    seen.add(key)
+  }
+
+  return next
+}
+
 // Die komplette Ansicht EINES Boards. Wird in App per key={boardId}
 // eingebunden – beim Board-Wechsel baut React die Komponente neu auf
 // und useBoard lädt sauber den Stand des neuen Boards.
@@ -68,6 +103,7 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
   const [loadingIdeas, setLoadingIdeas] = useState(false)
   const [loadingLink, setLoadingLink] = useState(false)
   const [loadingShopping, setLoadingShopping] = useState(false)
+  const [loadingTasks, setLoadingTasks] = useState(false)
   const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
   const shareTimerRef = useRef<number | null>(null)
   // Welche Kategorie gerade Nachschub lädt (null = keine)
@@ -224,6 +260,36 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
     }
   }
 
+  async function handleGenerateTasks() {
+    if (loadingTasks) return
+    const selectedTiles: ShoppingSourceTile[] = board.tiles
+      .filter((tile) => tile.selected)
+      .map((tile) => ({
+        title: tile.title,
+        description: tile.description,
+        category: tile.category,
+      }))
+
+    if (selectedTiles.length === 0) {
+      setError('Markiere zuerst einige Ideen als ausgewählt, damit daraus ein Zeitplan erzeugt werden kann.')
+      return
+    }
+
+    setError(null)
+    setLoadingTasks(true)
+    try {
+      const tasks = await generatePlanningTasks(board.topic, board.partyDetails, selectedTiles)
+      setBoard((current) => ({
+        ...current,
+        planningTasks: mergePlanningSuggestions(current.planningTasks, tasks),
+      }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Zeitplan konnte nicht geladen werden')
+    } finally {
+      setLoadingTasks(false)
+    }
+  }
+
   function handleDelete(id: string) {
     setBoard((current) => ({ ...current, tiles: current.tiles.filter((t) => t.id !== id) }))
   }
@@ -259,6 +325,46 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
           createdAt: Date.now(),
         },
       ],
+    }))
+  }
+
+  function handleTogglePlanningTask(id: string) {
+    setBoard((current) => ({
+      ...current,
+      planningTasks: current.planningTasks.map((task) =>
+        task.id === id ? { ...task, checked: !task.checked } : task
+      ),
+    }))
+  }
+
+  function handleAddPlanningTask(item: {
+    title: string
+    note?: string
+    daysBeforeParty?: number | null
+    dueDate?: string | null
+  }) {
+    setBoard((current) => ({
+      ...current,
+      planningTasks: [
+        ...current.planningTasks,
+        {
+          id: crypto.randomUUID(),
+          title: item.title,
+          note: item.note,
+          daysBeforeParty: typeof item.daysBeforeParty === 'number' ? item.daysBeforeParty : null,
+          dueDate: item.dueDate ?? null,
+          checked: false,
+          source: 'manual',
+          createdAt: Date.now(),
+        },
+      ],
+    }))
+  }
+
+  function handleRemovePlanningTask(id: string) {
+    setBoard((current) => ({
+      ...current,
+      planningTasks: current.planningTasks.filter((task) => task.id !== id),
     }))
   }
 
@@ -479,6 +585,20 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
           onToggleItem={handleToggleShoppingItem}
           onAddItem={handleAddShoppingItem}
           onRemoveItem={handleRemoveShoppingItem}
+        />
+      </div>
+
+      <div className="mt-12">
+        <TaskTimelineSection
+          items={board.planningTasks}
+          partyDetails={board.partyDetails}
+          editable
+          generating={loadingTasks}
+          selectedIdeasCount={board.tiles.filter((tile) => tile.selected).length}
+          onGenerate={handleGenerateTasks}
+          onToggleItem={handleTogglePlanningTask}
+          onAddItem={handleAddPlanningTask}
+          onRemoveItem={handleRemovePlanningTask}
         />
       </div>
 

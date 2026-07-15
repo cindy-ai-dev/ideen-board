@@ -48,6 +48,27 @@ export const SHOPPING_SCHEMA = {
   additionalProperties: false,
 } as const
 
+export const TASKS_SCHEMA = {
+  type: 'object',
+  properties: {
+    tasks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          note: { type: 'string' },
+          daysBeforeParty: { type: 'number' },
+        },
+        required: ['title', 'note', 'daysBeforeParty'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['tasks'],
+  additionalProperties: false,
+} as const
+
 // Luna ist die kostengünstigste GPT-5.6-Variante und für das Ideen-Board
 // während der Entwicklung ausreichend. Für die finale Abgabe kann dieser
 // Wert bei Bedarf wieder auf ein stärkeres Modell wechseln.
@@ -58,6 +79,12 @@ export interface RawShoppingItem {
   label: string
   note: string
   priceEuro: number
+}
+
+export interface RawPlanningTask {
+  title: string
+  note: string
+  daysBeforeParty: number
 }
 
 export interface ShoppingSourceTile {
@@ -154,6 +181,16 @@ export const SYSTEM_SHOPPING =
   'das aus dem Kontext ableitbar ist. Gruppiere die Einträge in passende Bereiche. Erzeuge eher ' +
   '8 bis 12 konkrete Posten als sehr lange Listen. Antworte auf Deutsch.'
 
+export const SYSTEM_TASKS =
+  'Du bist ein pragmatischer Planungs-Assistent für Partyvorbereitung. Du sollst aus Party-Details ' +
+  'und ausgewählten Ideen eine konkrete, zeitlich gestaffelte Aufgabenliste machen. Nutze das Motto, ' +
+  'falls vorhanden, als wichtigsten Kontext, dann die übrigen Party-Details. Erzeuge Aufgaben mit ' +
+  'praktischen Vorbereitungsschritten, die sich für eine typische Partyplanung eignen. Verteile die ' +
+  'Aufgaben über mehrere Zeitpunkte vor der Party, z. B. einige Wochen vorher, 1 Woche vorher, ' +
+  '1 Tag vorher und am Party-Tag. Gib für jede Aufgabe einen Wert `daysBeforeParty` an, der angibt, ' +
+  'wie viele Tage vor der Party sie idealerweise erledigt werden sollte. Nutze ganze Zahlen, keine ' +
+  'Dezimalwerte. Erzeuge eher 6 bis 10 konkrete Aufgaben als sehr lange Listen. Antworte auf Deutsch.'
+
 export function buildStartUserMessage(topic: string, details?: PartyDetails | null): string {
   return buildContextBlock(topic, details)
 }
@@ -212,6 +249,50 @@ export function buildShoppingUserMessageCompact(
     '- Maximal ein Satz pro Posten.',
     '- Für jeden Posten eine grobe Preisschätzung in Euro angeben.',
     '- Gruppiere nach Bereich.',
+    'Ausgewählte Ideen:',
+    ...selectedTiles.map((tile) => `- ${tile.category}: ${tile.title}`),
+  ]
+  return lines.join('\n')
+}
+
+export function buildTasksUserMessage(
+  topic: string,
+  details: PartyDetails | null | undefined,
+  selectedTiles: ShoppingSourceTile[]
+): string {
+  const lines = [
+    buildContextBlock(topic, details),
+    'Aufgabe: Erzeuge daraus eine zeitlich gestaffelte Checkliste für die Partyvorbereitung.',
+    'Wichtige Regeln:',
+    '- Nutze die Party-Details, vor allem Datum, Anlass, Motto und Gästezahl.',
+    '- Nenne konkrete To-dos wie Einladungen, Deko, Einkäufe, Basteln, Essen vorbereiten oder Aufbau.',
+    '- Streue die Aufgaben über mehrere Zeitpunkte vor der Party.',
+    '- Für jede Aufgabe `daysBeforeParty` als ganze Zahl angeben (z. B. 21, 7, 1, 0).',
+    '- Je größer der Wert, desto früher ist die Aufgabe fällig.',
+    '- Keine doppelten oder sehr ähnlichen Aufgaben.',
+    '- Antworte auf Deutsch.',
+    'Ausgewählte Ideen als Kontext:',
+    ...selectedTiles.map(
+      (tile) =>
+        `- [${tile.category}] ${tile.title}${tile.description ? ` — ${tile.description}` : ''}`
+    ),
+  ]
+  return lines.join('\n')
+}
+
+export function buildTasksUserMessageCompact(
+  topic: string,
+  details: PartyDetails | null | undefined,
+  selectedTiles: ShoppingSourceTile[]
+): string {
+  const lines = [
+    buildContextBlock(topic, details),
+    'Erzeuge eine kurze Aufgabenliste.',
+    'Regeln:',
+    '- Nur 5 bis 7 Aufgaben.',
+    '- Ganze Zahlen für `daysBeforeParty`.',
+    '- Kurze Titel, eine knappe Beschreibung.',
+    '- Gute Staffelung: mehrere Wochen vorher bis am Party-Tag.',
     'Ausgewählte Ideen:',
     ...selectedTiles.map((tile) => `- ${tile.category}: ${tile.title}`),
   ]

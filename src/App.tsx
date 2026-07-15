@@ -273,6 +273,7 @@ function HostApp() {
                     partyDetails: details,
                     tiles: [],
                     shoppingList: [],
+                    planningTasks: [],
                     rsvpToken: '',
                   })
                   setDialog(null)

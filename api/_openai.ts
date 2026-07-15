@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-import { IDEAS_SCHEMA, MODEL, type RawIdea } from '../src/lib/prompts.js'
+import { IDEAS_SCHEMA, MODEL, TASKS_SCHEMA, type RawIdea, type RawPlanningTask } from '../src/lib/prompts.js'
 import {
   SHOPPING_SCHEMA,
   type RawShoppingItem,
@@ -8,7 +8,7 @@ import {
 // Gemeinsamer Kern beider API-Funktionen. Läuft NUR auf dem Server –
 // der Key kommt aus der Vercel-Umgebungsvariable OPENAI_API_KEY
 // (ohne VITE_-Prefix: damit kann er nie ins Browser-Bundle rutschen).
-type JsonSchema = typeof IDEAS_SCHEMA | typeof SHOPPING_SCHEMA
+type JsonSchema = typeof IDEAS_SCHEMA | typeof SHOPPING_SCHEMA | typeof TASKS_SCHEMA
 
 async function askOpenAIJson<T>(
   system: string,
@@ -100,4 +100,21 @@ export async function askOpenAIShopping(
     retryMaxOutputTokens: 1200,
   })
   return data.items
+}
+
+export async function askOpenAITasks(
+  system: string,
+  userMessage: string,
+  retryUserMessage: string
+): Promise<RawPlanningTask[]> {
+  const data = await askOpenAIJsonWithRetry<{ tasks: RawPlanningTask[] }>({
+    system,
+    userMessage,
+    retryUserMessage,
+    schema: TASKS_SCHEMA,
+    responseName: 'planning_tasks',
+    maxOutputTokens: 2200,
+    retryMaxOutputTokens: 1200,
+  })
+  return data.tasks
 }

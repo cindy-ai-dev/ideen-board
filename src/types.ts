@@ -43,11 +43,23 @@ export interface ShoppingListItem {
   createdAt: number
 }
 
+export interface PlanningTaskItem {
+  id: string
+  title: string
+  note?: string
+  daysBeforeParty?: number | null
+  dueDate?: string | null
+  checked: boolean
+  source: 'ai' | 'manual'
+  createdAt: number
+}
+
 export interface BoardState {
   topic: string
   partyDetails: PartyDetails
   tiles: Tile[]
   shoppingList: ShoppingListItem[]
+  planningTasks: PlanningTaskItem[]
   rsvpToken: string
 }
 
@@ -83,6 +95,7 @@ export function createEmptyBoard(): BoardState {
     partyDetails: createEmptyPartyDetails(),
     tiles: [],
     shoppingList: [],
+    planningTasks: [],
     rsvpToken: createRsvpToken(),
   }
 }
