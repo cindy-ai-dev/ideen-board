@@ -141,19 +141,19 @@ export function BoardView({ boardId }: { boardId: string }) {
   return (
     <>
       {/* Eingabezeile: Thema + Link + eigene Idee */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-10">
+      <div className="mb-12 flex flex-col gap-3 rounded-[1.75rem] border border-white bg-white/80 p-4 shadow-[0_12px_35px_rgba(119,75,43,0.08)] sm:p-5 lg:flex-row">
         <div className="flex flex-1 gap-2">
           <input
             value={topicInput}
             onChange={(e) => setTopicInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
             placeholder='Thema, z.B. "Pokémon-Geburtstag, 6 Jahre"'
-            className="flex-1 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="flex-1 rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 placeholder-stone-400 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
           />
           <button
             onClick={handleGenerate}
             disabled={loadingIdeas || !topicInput.trim()}
-            className="rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-medium px-5 py-2.5 whitespace-nowrap transition-colors"
+            className="whitespace-nowrap rounded-2xl bg-orange-500 px-5 py-3 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 hover:shadow-md disabled:opacity-40"
           >
             {loadingIdeas ? 'Denkt nach…' : '✨ Ideen holen'}
           </button>
@@ -164,39 +164,39 @@ export function BoardView({ boardId }: { boardId: string }) {
             onChange={(e) => setUrlInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddLink()}
             placeholder="Link einwerfen (YouTube, Amazon, …)"
-            className="flex-1 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            className="flex-1 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3 text-stone-800 placeholder-stone-400 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
           />
           <button
             onClick={handleAddLink}
             disabled={loadingLink || !urlInput.trim()}
-            className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white font-medium px-5 py-2.5 whitespace-nowrap transition-colors"
+            className="whitespace-nowrap rounded-2xl bg-sky-500 px-5 py-3 font-semibold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600 hover:shadow-md disabled:opacity-40"
           >
             {loadingLink ? 'Lädt…' : '🔗 Hinzufügen'}
           </button>
         </div>
         <button
           onClick={() => setEditor('new')}
-          className="rounded-xl border-2 border-dashed border-stone-300 text-stone-500 hover:border-stone-400 hover:text-stone-700 font-medium px-5 py-2.5 whitespace-nowrap transition-colors"
+          className="whitespace-nowrap rounded-2xl border-2 border-dashed border-orange-200 px-5 py-3 font-semibold text-orange-600 transition hover:border-orange-400 hover:bg-orange-50"
         >
           ＋ Eigene Idee
         </button>
       </div>
 
       {error && (
-        <div className="mb-6 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3">
+        <div className="mb-8 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-rose-700 shadow-sm">
           {error}
         </div>
       )}
 
       {board.tiles.length === 0 && !loadingIdeas && (
-        <div className="text-center text-stone-400 py-24">
-          <p className="text-5xl mb-4">🎈</p>
-          <p>Noch leer hier. Gib oben ein Thema ein und lass dir ein Ideen-Startset geben.</p>
+        <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
+          <p className="mb-4 text-5xl">🎈</p>
+          <p className="mx-auto max-w-md leading-relaxed">Noch leer hier. Gib oben ein Thema ein und lass dir ein Ideen-Startset geben.</p>
         </div>
       )}
 
       {/* Die Wand: Kategorien als Abschnitte, Kacheln im Grid */}
-      <div className="space-y-10">
+      <div className="space-y-12">
         {[...grouped.entries()].map(([category, tiles]) => {
           const color = categoryColor(category)
           const isLinkCategory = tiles.every((t) => t.kind === 'link')
@@ -214,13 +214,13 @@ export function BoardView({ boardId }: { boardId: string }) {
                 if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null)
               }}
               onDrop={(e) => handleDrop(category, e)}
-              className={`rounded-2xl transition-colors ${
-                dragOver === category ? 'bg-stone-200/60 ring-2 ring-stone-300' : ''
+              className={`rounded-[1.75rem] p-1 transition-colors ${
+                dragOver === category ? 'bg-orange-100/70 ring-2 ring-orange-200' : ''
               }`}
             >
-              <div className="flex items-center gap-3 mb-4">
+              <div className="mb-5 flex items-center gap-3 px-1">
                 <h2
-                  className={`inline-block text-sm font-semibold uppercase tracking-wider px-3 py-1 rounded-full ${color.bg} ${color.text}`}
+                  className={`inline-block rounded-full px-4 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] ${color.bg} ${color.text}`}
                 >
                   {category} · {tiles.length}
                 </h2>
@@ -230,13 +230,13 @@ export function BoardView({ boardId }: { boardId: string }) {
                   <button
                     onClick={() => handleMoreIdeas(category)}
                     disabled={loadingMore !== null}
-                    className="text-sm text-stone-400 hover:text-stone-700 disabled:opacity-40 transition-colors"
+                    className="rounded-full bg-white/70 px-3 py-1.5 text-sm font-semibold text-stone-500 shadow-sm transition hover:text-orange-700 disabled:opacity-40"
                   >
                     {loadingMore === category ? 'Denkt nach…' : '✨ mehr davon'}
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {tiles.map((tile) => (
                   <TileCard
                     key={tile.id}

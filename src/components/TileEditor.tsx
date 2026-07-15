@@ -33,14 +33,14 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/30 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 flex flex-col gap-4"
+        className="flex w-full max-w-md flex-col gap-5 rounded-[1.75rem] border border-white bg-white p-7 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-stone-800">
+        <h2 className="text-xl font-extrabold tracking-tight text-stone-800">
           {tile ? 'Kachel bearbeiten' : 'Eigene Idee hinzufügen'}
         </h2>
 
@@ -51,7 +51,7 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-            className="rounded-xl border border-stone-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-2.5 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
           />
         </label>
 
@@ -61,7 +61,7 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="rounded-xl border border-stone-300 px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="resize-none rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-2.5 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
           />
         </label>
 
@@ -73,7 +73,7 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
             list="category-options"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="rounded-xl border border-stone-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-2.5 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
           />
           <datalist id="category-options">
             {categories.map((c) => (
@@ -88,14 +88,14 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
             value={image}
             onChange={(e) => setImage(e.target.value)}
             placeholder="https://… (z.B. Rechtsklick auf ein Bild → Bildadresse kopieren)"
-            className="rounded-xl border border-stone-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-2.5 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
           />
           {/* Live-Vorschau, damit man sofort sieht, ob der Link ein Bild ist */}
           {image.trim() && (
             <img
               src={image.trim()}
               alt="Vorschau"
-              className="mt-1 h-24 w-full object-cover rounded-xl border border-stone-200"
+              className="mt-1 h-24 w-full rounded-2xl border border-orange-100 object-cover"
               onError={(e) => (e.currentTarget.style.display = 'none')}
               onLoad={(e) => (e.currentTarget.style.display = '')}
             />
@@ -105,14 +105,14 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
         <div className="flex justify-end gap-2 mt-2">
           <button
             onClick={onClose}
-            className="rounded-xl px-4 py-2 text-stone-600 hover:bg-stone-100 transition-colors"
+            className="rounded-2xl px-4 py-2.5 font-medium text-stone-600 transition hover:bg-stone-100"
           >
             Abbrechen
           </button>
           <button
             onClick={handleSave}
             disabled={!title.trim()}
-            className="rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-medium px-5 py-2 transition-colors"
+            className="rounded-2xl bg-orange-500 px-5 py-2.5 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:opacity-40"
           >
             Speichern
           </button>

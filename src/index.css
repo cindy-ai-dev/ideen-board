@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
 body {
-  background: #f5f3ef;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 212, 153, 0.48), transparent 25rem),
+    radial-gradient(circle at 92% 7%, rgba(251, 190, 205, 0.34), transparent 23rem),
+    #fffaf5;
+  color: #3f332c;
 }

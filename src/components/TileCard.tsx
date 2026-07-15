@@ -3,12 +3,12 @@ import type { Tile } from '../types'
 // Jede Kategorie bekommt deterministisch eine Farbe aus der Palette,
 // damit Kacheln derselben Kategorie zusammengehörig aussehen.
 const PALETTE = [
-  { bg: 'bg-amber-100', accent: 'border-amber-400', text: 'text-amber-900' },
-  { bg: 'bg-sky-100', accent: 'border-sky-400', text: 'text-sky-900' },
-  { bg: 'bg-rose-100', accent: 'border-rose-400', text: 'text-rose-900' },
-  { bg: 'bg-emerald-100', accent: 'border-emerald-400', text: 'text-emerald-900' },
-  { bg: 'bg-violet-100', accent: 'border-violet-400', text: 'text-violet-900' },
-  { bg: 'bg-orange-100', accent: 'border-orange-400', text: 'text-orange-900' },
+  { bg: 'bg-amber-50', accent: 'border-amber-400', text: 'text-amber-950' },
+  { bg: 'bg-sky-50', accent: 'border-sky-400', text: 'text-sky-950' },
+  { bg: 'bg-rose-50', accent: 'border-rose-400', text: 'text-rose-950' },
+  { bg: 'bg-emerald-50', accent: 'border-emerald-400', text: 'text-emerald-950' },
+  { bg: 'bg-violet-50', accent: 'border-violet-400', text: 'text-violet-950' },
+  { bg: 'bg-orange-50', accent: 'border-orange-400', text: 'text-orange-950' },
 ]
 
 export function categoryColor(category: string) {
@@ -38,13 +38,13 @@ export function TileCard({
         e.dataTransfer.setData('text/plain', tile.id)
         e.dataTransfer.effectAllowed = 'move'
       }}
-      className={`group relative rounded-2xl border-t-4 ${color.accent} ${color.bg} shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col cursor-grab active:cursor-grabbing`}
+      className={`group relative flex cursor-grab flex-col overflow-hidden rounded-[1.5rem] border border-white border-t-4 ${color.accent} ${color.bg} shadow-[0_8px_22px_rgba(91,58,36,0.09)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(91,58,36,0.14)] active:cursor-grabbing`}
     >
       {tile.image && (
         <img
           src={tile.image}
           alt=""
-          className="w-full h-36 object-cover"
+          className="h-40 w-full object-cover"
           // onError versteckt kaputte Bilder; onLoad macht das wieder
           // rückgängig, falls dieselbe Kachel später eine funktionierende
           // URL bekommt (React verwendet das DOM-Element weiter!)
@@ -52,8 +52,8 @@ export function TileCard({
           onLoad={(e) => (e.currentTarget.style.display = '')}
         />
       )}
-      <div className="p-4 flex-1 flex flex-col gap-1.5">
-        <h3 className={`font-semibold leading-snug ${color.text}`}>
+      <div className="flex flex-1 flex-col gap-2 p-5">
+        <h3 className={`pr-9 text-lg font-bold leading-snug ${color.text}`}>
           {tile.kind === 'link' && tile.url ? (
             <a href={tile.url} target="_blank" rel="noreferrer" className="hover:underline">
               {tile.title} ↗
@@ -63,10 +63,10 @@ export function TileCard({
           )}
         </h3>
         {tile.description && (
-          <p className="text-sm text-stone-600 leading-relaxed">{tile.description}</p>
+          <p className="text-sm leading-relaxed text-stone-600">{tile.description}</p>
         )}
       </div>
-      <div className="absolute top-2 right-2 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
+      <div className="absolute right-3 top-3 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
         <button
           // Die Kachel selbst ist draggable. Interaktionen mit den
           // Aktionsknöpfen dürfen deshalb keinen Drag-Vorgang starten.
@@ -77,7 +77,7 @@ export function TileCard({
           }}
           title="Kachel bearbeiten"
           aria-label="Kachel bearbeiten"
-          className="w-7 h-7 rounded-full bg-white/80 text-stone-500 hover:bg-white hover:text-stone-800 text-sm leading-none"
+          className="h-8 w-8 rounded-full bg-white/90 text-sm leading-none text-stone-500 shadow-sm transition hover:bg-white hover:text-orange-700"
         >
           ✎
         </button>
@@ -89,7 +89,7 @@ export function TileCard({
           }}
           title="Kachel entfernen"
           aria-label="Kachel entfernen"
-          className="w-7 h-7 rounded-full bg-white/80 text-stone-500 hover:bg-white hover:text-stone-800 text-sm leading-none"
+          className="h-8 w-8 rounded-full bg-white/90 text-sm leading-none text-stone-500 shadow-sm transition hover:bg-white hover:text-rose-600"
         >
           ✕
         </button>

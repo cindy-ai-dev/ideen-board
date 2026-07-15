@@ -19,33 +19,33 @@ export function NameDialog({ title, initial = '', onSave, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/30 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4"
+        className="flex w-full max-w-sm flex-col gap-5 rounded-[1.75rem] border border-white bg-white p-7 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-stone-800">{title}</h2>
+        <h2 className="text-xl font-extrabold tracking-tight text-stone-800">{title}</h2>
         <input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           placeholder='z.B. "Renovierung Bad"'
-          className="rounded-xl border border-stone-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
         />
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded-xl px-4 py-2 text-stone-600 hover:bg-stone-100 transition-colors"
+            className="rounded-2xl px-4 py-2.5 font-medium text-stone-600 transition hover:bg-stone-100"
           >
             Abbrechen
           </button>
           <button
             onClick={handleSave}
             disabled={!name.trim()}
-            className="rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-medium px-5 py-2 transition-colors"
+            className="rounded-2xl bg-orange-500 px-5 py-2.5 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:opacity-40"
           >
             Speichern
           </button>
