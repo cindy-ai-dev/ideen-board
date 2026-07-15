@@ -35,14 +35,41 @@ async function loadRsvpBoard(token: string, boardId: string | null) {
   return getBoard(boardId)
 }
 
-function upsertGuest(guests: Guest[], name: string, status: GuestStatus): Guest[] {
+function normalizeOptionalText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
+
+function upsertGuest(
+  guests: Guest[],
+  name: string,
+  status: GuestStatus,
+  allergies?: string
+): Guest[] {
   const key = normalizeGuestKey(name)
   const existingIndex = guests.findIndex((guest) => normalizeGuestKey(guest.name) === key)
   if (existingIndex >= 0) {
-    return guests.map((guest, index) => (index === existingIndex ? { ...guest, status } : guest))
+    return guests.map((guest, index) =>
+      index === existingIndex
+        ? {
+            ...guest,
+            status,
+            allergies: allergies === undefined ? guest.allergies : allergies || undefined,
+          }
+        : guest
+    )
   }
 
-  return [...guests, { id: crypto.randomUUID(), name: name.trim(), status }]
+  return [
+    ...guests,
+    {
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      status,
+      allergies: normalizeOptionalText(allergies),
+    },
+  ]
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -74,6 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const name = typeof req.body?.name === 'string' ? req.body.name.trim() : ''
       const status = req.body?.status
+      const allergies = req.body?.allergies
       if (!name || !isGuestStatus(status)) {
         res.status(400).json({ error: 'Ungültige Gästedaten' })
         return
@@ -85,7 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ...board.data,
           partyDetails: {
             ...board.data.partyDetails,
-            guests: upsertGuest(board.data.partyDetails.guests, name, status),
+            guests: upsertGuest(board.data.partyDetails.guests, name, status, allergies),
           },
         },
       }

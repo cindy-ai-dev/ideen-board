@@ -22,6 +22,11 @@ function statusLabel(status: 'eingeladen' | 'zugesagt' | 'abgesagt'): string {
   return 'Eingeladen'
 }
 
+function guestAllergyLabel(allergies?: string): string | null {
+  const value = allergies?.trim()
+  return value ? value : null
+}
+
 export function BoardPlanView({
   boardId,
   onBack,
@@ -118,12 +123,19 @@ export function BoardPlanView({
                 {board.partyDetails.guests.map((guest) => (
                   <div
                     key={guest.id}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-orange-100 bg-white px-3 py-2.5 print:border-stone-200"
+                    className="flex flex-col gap-2 rounded-2xl border border-orange-100 bg-white px-3 py-2.5 print:border-stone-200 sm:flex-row sm:items-start sm:justify-between"
                   >
-                    <span className="min-w-0 flex-1 truncate font-semibold text-stone-800">
-                      {guest.name}
-                    </span>
-                    <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 print:border print:border-stone-300 print:bg-white">
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-stone-800">
+                        {guest.name}
+                      </span>
+                      {guestAllergyLabel(guest.allergies) && (
+                        <p className="mt-1 text-xs leading-relaxed text-stone-500 print:text-stone-700">
+                          Allergien / Unverträglichkeiten: {guestAllergyLabel(guest.allergies)}
+                        </p>
+                      )}
+                    </div>
+                    <span className="self-start rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 print:border print:border-stone-300 print:bg-white">
                       {statusLabel(guest.status)}
                     </span>
                   </div>

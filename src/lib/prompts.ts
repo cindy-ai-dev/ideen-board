@@ -69,7 +69,7 @@ export const TASKS_SCHEMA = {
   additionalProperties: false,
 } as const
 
-// Luna ist die kostengünstigste GPT-5.6-Variante und für das Ideen-Board
+// Luna ist die kostengünstigste GPT-5.6-Variante und für PartyHost
 // während der Entwicklung ausreichend. Für die finale Abgabe kann dieser
 // Wert bei Bedarf wieder auf ein stärkeres Modell wechseln.
 export const MODEL = 'gpt-5.6-luna'
@@ -122,7 +122,12 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
   const budgetLimit = typeof safe.budgetLimitEuro === 'number' ? safe.budgetLimitEuro : null
   const guestCount = formatGuestCount(safe.guestCount)
   const guests = safe.guests
-    .map((guest) => `${guest.name} (${guest.status})`)
+    .map((guest) => {
+      const allergies = typeof guest.allergies === 'string' && guest.allergies.trim()
+        ? `, Allergien/Unverträglichkeiten: ${guest.allergies.trim()}`
+        : ''
+      return `${guest.name} (${guest.status}${allergies})`
+    })
     .filter(Boolean)
 
   if (theme) lines.push(`Motto: ${theme}`)
@@ -178,8 +183,9 @@ export const SYSTEM_SHOPPING =
   'Party-Details und Gästezahl eine konkrete, umsetzbare Einkaufsliste machen. Nutze das Motto, ' +
   'falls vorhanden, als wichtigsten Kontext, dann die übrigen Party-Details. Erzeuge keine vagen ' +
   'Ratschläge, sondern konkrete Einkaufsartikel mit sinnvollen Mengen oder Packungsgrößen, wenn ' +
-  'das aus dem Kontext ableitbar ist. Gruppiere die Einträge in passende Bereiche. Erzeuge eher ' +
-  '8 bis 12 konkrete Posten als sehr lange Listen. Antworte auf Deutsch.'
+  'das aus dem Kontext ableitbar ist. Berücksichtige bekannte Allergien oder Unverträglichkeiten ' +
+  'und schlage bei Bedarf passende Alternativen vor. Gruppiere die Einträge in passende Bereiche. ' +
+  'Erzeuge eher 8 bis 12 konkrete Posten als sehr lange Listen. Antworte auf Deutsch.'
 
 export const SYSTEM_TASKS =
   'Du bist ein pragmatischer Planungs-Assistent für Partyvorbereitung. Du sollst aus Party-Details ' +
@@ -223,6 +229,7 @@ export function buildShoppingUserMessage(
     '- Konkrete Einkaufsartikel nennen, keine losen Ideensätze.',
     '- Mengen oder Packungsgrößen nennen, wenn sie sich aus Gästezahl oder Anlass ableiten lassen.',
     '- Für jeden Posten eine grobe Preisschätzung in Euro angeben.',
+    '- Bekannte Allergien/Unverträglichkeiten aus den Party-Details berücksichtigen.',
     '- Liste nach sinnvollen Bereichen gruppieren, z. B. Deko, Essen, Getränke, Geschirr, Backen, Sonstiges.',
     '- Keine doppelten oder sehr ähnlichen Artikel.',
     '- Antworte auf Deutsch.',
@@ -248,6 +255,7 @@ export function buildShoppingUserMessageCompact(
     '- Kurze, knappe Beschreibungen.',
     '- Maximal ein Satz pro Posten.',
     '- Für jeden Posten eine grobe Preisschätzung in Euro angeben.',
+    '- Bekannte Allergien/Unverträglichkeiten berücksichtigen.',
     '- Gruppiere nach Bereich.',
     'Ausgewählte Ideen:',
     ...selectedTiles.map((tile) => `- ${tile.category}: ${tile.title}`),

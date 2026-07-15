@@ -19,6 +19,7 @@ export interface Guest {
   id: string
   name: string
   status: GuestStatus
+  allergies?: string
 }
 
 export interface PartyDetails {

@@ -11,13 +11,6 @@ interface Props {
   showCalendar?: boolean
 }
 
-function updateGuestStatus(current: PartyDetails, id: string, status: GuestStatus): PartyDetails {
-  return {
-    ...current,
-    guests: current.guests.map((guest) => (guest.id === id ? { ...guest, status } : guest)),
-  }
-}
-
 function escapeIcsText(value: string): string {
   return value
     .replace(/\\/g, '\\\\')
@@ -61,7 +54,7 @@ function buildCalendarFile(value: PartyDetails): string | null {
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Ideen-Board//Party Planner//DE',
+    'PRODID:-//PartyHost//Party Planner//DE',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
@@ -110,6 +103,7 @@ export function PartyDetailsFields({
   showCalendar = true,
 }: Props) {
   const [guestName, setGuestName] = useState('')
+  const [guestAllergies, setGuestAllergies] = useState('')
   const [guestStatus, setGuestStatus] = useState<GuestStatus>('eingeladen')
   const calendarReady = Boolean(value.date && value.time)
 
@@ -139,16 +133,43 @@ export function PartyDetailsFields({
   function addGuest() {
     const name = guestName.trim()
     if (!name) return
+    const allergies = guestAllergies.trim()
     onChange({
       ...value,
-      guests: [...value.guests, { id: crypto.randomUUID(), name, status: guestStatus }],
+      guests: [
+        ...value.guests,
+        {
+          id: crypto.randomUUID(),
+          name,
+          status: guestStatus,
+          allergies: allergies || undefined,
+        },
+      ],
     })
     setGuestName('')
+    setGuestAllergies('')
     setGuestStatus('eingeladen')
   }
 
   function removeGuest(id: string) {
     onChange({ ...value, guests: value.guests.filter((guest) => guest.id !== id) })
+  }
+
+  function updateGuestField(id: string, field: 'status' | 'allergies', nextValue: string) {
+    onChange({
+      ...value,
+      guests: value.guests.map((guest) =>
+        guest.id === id
+          ? {
+              ...guest,
+              [field]:
+                field === 'status'
+                  ? (nextValue as GuestStatus)
+                  : nextValue.trim() || undefined,
+            }
+          : guest
+      ),
+    })
   }
 
   return (
@@ -278,12 +299,12 @@ export function PartyDetailsFields({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 lg:flex-row">
+          <div className="grid gap-2 lg:grid-cols-[1.2fr_1fr_auto]">
             <input
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="Name hinzufügen"
-              className="flex-1 rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
+              className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
             <select
               value={guestStatus}
@@ -301,6 +322,12 @@ export function PartyDetailsFields({
             >
               Hinzufügen
             </button>
+            <input
+              value={guestAllergies}
+              onChange={(e) => setGuestAllergies(e.target.value)}
+              placeholder="Allergien / Unverträglichkeiten (optional)"
+              className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100 lg:col-span-3"
+            />
           </div>
 
           {value.guests.length === 0 ? (
@@ -310,28 +337,34 @@ export function PartyDetailsFields({
               {value.guests.map((guest) => (
                 <div
                   key={guest.id}
-                  className="flex flex-col gap-2 rounded-2xl border border-orange-100 bg-orange-50/40 px-3 py-3 sm:flex-row sm:items-center"
+                  className="flex flex-col gap-3 rounded-2xl border border-orange-100 bg-orange-50/40 px-3 py-3"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-stone-800">{guest.name}</p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-stone-800">{guest.name}</p>
+                    </div>
+                    <select
+                      value={guest.status}
+                      onChange={(e) => updateGuestField(guest.id, 'status', e.target.value)}
+                      className="rounded-full border border-orange-100 bg-white px-3 py-1.5 text-sm text-stone-700 outline-none transition focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
+                    >
+                      <option value="eingeladen">eingeladen</option>
+                      <option value="zugesagt">zugesagt</option>
+                      <option value="abgesagt">abgesagt</option>
+                    </select>
+                    <button
+                      onClick={() => removeGuest(guest.id)}
+                      className="rounded-full px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+                    >
+                      Entfernen
+                    </button>
                   </div>
-                  <select
-                    value={guest.status}
-                    onChange={(e) =>
-                      onChange(updateGuestStatus(value, guest.id, e.target.value as GuestStatus))
-                    }
-                    className="rounded-full border border-orange-100 bg-white px-3 py-1.5 text-sm text-stone-700 outline-none transition focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
-                  >
-                    <option value="eingeladen">eingeladen</option>
-                    <option value="zugesagt">zugesagt</option>
-                    <option value="abgesagt">abgesagt</option>
-                  </select>
-                  <button
-                    onClick={() => removeGuest(guest.id)}
-                    className="rounded-full px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
-                  >
-                    Entfernen
-                  </button>
+                  <input
+                    value={guest.allergies ?? ''}
+                    onChange={(e) => updateGuestField(guest.id, 'allergies', e.target.value)}
+                    placeholder="Allergien / Unverträglichkeiten (optional)"
+                    className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
+                  />
                 </div>
               ))}
             </div>

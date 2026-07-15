@@ -21,6 +21,7 @@ function trimPartyDetails(details: PartyDetails): PartyDetails {
       .map((guest) => ({
         ...guest,
         name: guest.name.trim(),
+        allergies: guest.allergies?.trim() || undefined,
       }))
       .filter((guest) => guest.name),
   }
@@ -51,7 +52,7 @@ type WorkspaceView = BoardSection | 'plan'
 const VIEW_LABELS: Record<WorkspaceView, string> = {
   overview: 'Übersicht',
   guests: 'Gästeliste',
-  ideas: 'Ideen-Board',
+  ideas: 'Ideen',
   shopping: 'Einkaufsliste',
   timeline: 'Zeitstrahl',
   plan: 'Gesamtplan',
@@ -161,6 +162,12 @@ function HostApp() {
     setViewInUrl(view)
   }, [view])
 
+  useEffect(() => {
+    const activeBoard = boards.find((b) => b.id === activeId) ?? boards[0] ?? null
+    const boardName = activeBoard?.name?.trim()
+    document.title = boardName ? `PartyHost · ${boardName}` : 'PartyHost'
+  }, [activeId, boards])
+
   const active = boards.find((b) => b.id === activeId) ?? boards[0] ?? null
   const boardSummaries = useMemo(() => {
     return boards
@@ -194,7 +201,7 @@ function HostApp() {
     <div className="min-h-screen max-w-7xl mx-auto px-4 py-6 pb-28 sm:px-6 sm:py-10 lg:px-8 lg:pb-10">
       <header className={`mb-7 rounded-[2rem] border border-white/80 bg-white/75 px-6 py-7 shadow-[0_12px_40px_rgba(119,75,43,0.10)] backdrop-blur sm:px-9 sm:py-8 ${view === 'plan' ? 'hidden' : ''}`}>
         <p className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-orange-500">Planen · Sammeln · Feiern</p>
-        <h1 className="text-4xl font-extrabold tracking-tight text-stone-800 sm:text-5xl">Ideen-Board</h1>
+        <h1 className="text-4xl font-extrabold tracking-tight text-stone-800 sm:text-5xl">PartyHost</h1>
         <p className="mt-3 max-w-xl text-base leading-relaxed text-stone-500">
           Party-Details festhalten, KI-Ideen generieren und Links sammeln.
         </p>
@@ -336,9 +343,9 @@ function HostApp() {
               <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800">
                 Party-Details anlegen
               </h2>
-              <p className="mt-2 text-sm leading-relaxed text-stone-500">
+                <p className="mt-2 text-sm leading-relaxed text-stone-500">
                 Das Board bekommt seinen Namen aus dem Feld „Für wen / Anlass“. Die Angaben
-                landen direkt im Board und werden für die Ideen-Generierung verwendet.
+                werden gespeichert und als Kontext für die Ideen-Generierung verwendet.
               </p>
             </div>
             <PartyDetailsFields value={newBoardDetails} onChange={setNewBoardDetails} />

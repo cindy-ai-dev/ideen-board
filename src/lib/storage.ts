@@ -54,11 +54,13 @@ function normalizeGuest(value: unknown): Guest | null {
   if (!name || (status !== 'eingeladen' && status !== 'zugesagt' && status !== 'abgesagt')) {
     return null
   }
+  const allergies = typeof value.allergies === 'string' ? value.allergies.trim() : ''
 
   return {
     id: typeof value.id === 'string' && value.id.trim() ? value.id : crypto.randomUUID(),
     name,
     status,
+    allergies: allergies ? allergies : undefined,
   }
 }
 

@@ -17,6 +17,27 @@ function normalizeShoppingKey(section: string, label: string): string {
   return `${section.trim().toLowerCase()}::${label.trim().toLowerCase()}`
 }
 
+function isPartyDetailsEmpty(details: PartyDetails): boolean {
+  return !(
+    details.forWhom.trim() ||
+    details.theme.trim() ||
+    details.location.trim() ||
+    details.date ||
+    details.time ||
+    details.guestCount !== null ||
+    details.budgetLimitEuro !== null
+  )
+}
+
+function splitSummaryLine(line: string): { label: string; value: string } {
+  const idx = line.indexOf(':')
+  if (idx < 0) return { label: line, value: '' }
+  return {
+    label: line.slice(0, idx).trim(),
+    value: line.slice(idx + 1).trim(),
+  }
+}
+
 function normalizePrice(price: number | string | null | undefined): number | null {
   if (typeof price === 'number') {
     return Number.isFinite(price) && price >= 0 ? price : null
@@ -115,6 +136,7 @@ export function BoardView({
   const [loadingShopping, setLoadingShopping] = useState(false)
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
+  const [editingDetails, setEditingDetails] = useState(() => isPartyDetailsEmpty(board.partyDetails))
   const shareTimerRef = useRef<number | null>(null)
   // Welche Kategorie gerade Nachschub lädt (null = keine)
   const [loadingMore, setLoadingMore] = useState<string | null>(null)
@@ -443,13 +465,22 @@ export function BoardView({
   const showIdeas = activeSection === 'ideas'
   const showShopping = activeSection === 'shopping'
   const showTimeline = activeSection === 'timeline'
+  const summaryLines = partySummary ? partySummary.split('\n').filter(Boolean) : []
+  const hasPartyDetails = !isPartyDetailsEmpty(board.partyDetails)
+  const showDetailsEditor = showOverview && (editingDetails || !hasPartyDetails)
+  const showSummary = showOverview && hasPartyDetails && !editingDetails
+
+  useEffect(() => {
+    if (!showOverview) setEditingDetails(false)
+  }, [showOverview])
 
   return (
     <>
       {(showOverview || showGuests) && (
         <section className="mb-8 rounded-[1.85rem] border border-white bg-white/80 p-5 shadow-[0_12px_35px_rgba(119,75,43,0.08)] backdrop-blur sm:p-6">
-          <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-            <div>
+          <div className="mb-5 space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">
                 {showGuests ? 'Gästeliste' : 'Party-Details'}
               </p>
@@ -461,25 +492,82 @@ export function BoardView({
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500">
                 {showGuests
                   ? 'Hier verwaltest du die Gästeliste und den RSVP-Link.'
-                  : 'Diese Angaben werden in localStorage gespeichert und als Kontext für die KI genutzt.'}
+                  : 'Diese Angaben werden gespeichert und als Kontext für die KI genutzt.'}
               </p>
+              </div>
+              {showOverview && hasPartyDetails && (
+                <button
+                  onClick={() => setEditingDetails((current) => !current)}
+                  className="rounded-full border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-orange-700 transition hover:bg-orange-50"
+                >
+                  {editingDetails ? 'Zurück' : 'Bearbeiten'}
+                </button>
+              )}
             </div>
-            {partySummary && showOverview && (
-              <div className="max-w-sm rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-3 text-sm leading-relaxed text-stone-600">
-                {partySummary}
+
+            {showSummary && (
+              <div className="w-full rounded-2xl border border-orange-100 bg-orange-50/70 p-4 text-sm leading-relaxed text-stone-600">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-600">
+                  Party auf einen Blick
+                </p>
+                {summaryLines.length > 0 ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {summaryLines.map((line) => {
+                      const { label, value } = splitSummaryLine(line)
+                      return (
+                        <div key={line} className="rounded-xl bg-white/80 px-3 py-2.5 shadow-sm">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">
+                            {label}
+                          </p>
+                          <p className="mt-0.5 text-sm font-medium text-stone-700">
+                            {value || label}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-xl border border-dashed border-orange-200 bg-white/70 px-4 py-6 text-center text-stone-500">
+                    Noch keine Party-Details eingetragen.
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          <PartyDetailsFields
-            value={board.partyDetails}
-            onChange={updatePartyDetails}
-            onShareRsvpLink={handleShareRsvpLink}
-            shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
-            showDetails={showOverview}
-            showGuestList={showGuests}
-            showCalendar={showOverview}
-          />
+          {showDetailsEditor && (
+            <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
+              <PartyDetailsFields
+                value={board.partyDetails}
+                onChange={updatePartyDetails}
+                onShareRsvpLink={handleShareRsvpLink}
+                shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
+                showDetails
+                showGuestList={false}
+                showCalendar
+              />
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <button
+                  onClick={() => setEditingDetails(false)}
+                  className="rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600"
+                >
+                  Speichern & zurück
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showGuests && (
+            <PartyDetailsFields
+              value={board.partyDetails}
+              onChange={updatePartyDetails}
+              onShareRsvpLink={handleShareRsvpLink}
+              shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
+              showDetails={false}
+              showGuestList
+              showCalendar={false}
+            />
+          )}
 
           <div className="mt-5 flex flex-wrap justify-end gap-2 print:hidden">
             <button
