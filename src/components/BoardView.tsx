@@ -60,6 +60,40 @@ function isDeadlineExpired(value: string): boolean {
   return parsed < today
 }
 
+function formatPartyDate(date: string, time: string): string {
+  if (!date) return 'Ohne Datum'
+  const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) return date
+  const datePart = new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed)
+  return time ? `${datePart}, ${time} Uhr` : datePart
+}
+
+function formatDeadline(value: string): string | null {
+  if (!value) return null
+  const parsed = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed)
+}
+
+function buildGuestReminderText(options: {
+  partyName: string
+  partyDate: string
+  responseDeadline?: string
+  rsvpUrl: string
+}): string {
+  const intro = `Hey! Nicht vergessen: RSVP für ${options.partyName} am ${options.partyDate}.`
+  const deadline = options.responseDeadline ? ` (Antwort bis ${options.responseDeadline})` : ''
+  return `${intro}${deadline} Sag uns Bescheid, ob du kommst: ${options.rsvpUrl}`
+}
+
 function splitSummaryLine(line: string): { label: string; value: string } {
   const idx = line.indexOf(':')
   if (idx < 0) return { label: line, value: '' }
@@ -200,8 +234,12 @@ export function BoardView({
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [loadingSchedule, setLoadingSchedule] = useState(false)
   const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
+  const [reminderOpen, setReminderOpen] = useState(false)
+  const [reminderCopyState, setReminderCopyState] = useState<'idle' | 'copied'>('idle')
+  const [reminderText, setReminderText] = useState('')
   const [editingDetails, setEditingDetails] = useState(() => isPartyDetailsEmpty(board.partyDetails))
   const shareTimerRef = useRef<number | null>(null)
+  const reminderTimerRef = useRef<number | null>(null)
   // Welche Kategorie gerade Nachschub lädt (null = keine)
   const [loadingMore, setLoadingMore] = useState<string | null>(null)
   // Editor: 'new' = neue eigene Kachel, Tile = diese Kachel bearbeiten
@@ -232,8 +270,47 @@ export function BoardView({
   useEffect(() => {
     return () => {
       if (shareTimerRef.current !== null) window.clearTimeout(shareTimerRef.current)
+      if (reminderTimerRef.current !== null) window.clearTimeout(reminderTimerRef.current)
     }
   }, [])
+
+  function ensureRsvpToken(): string {
+    let token = board.rsvpToken.trim()
+    if (!token) {
+      token = createRsvpToken()
+      const nextBoard = { ...board, rsvpToken: token }
+      setBoard(nextBoard)
+      void saveBoardRemote(
+        boardId,
+        nextBoard.partyDetails.forWhom.trim() || nextBoard.topic.trim() || 'Neues Board',
+        nextBoard
+      ).catch(() => {
+        // Token bleibt lokal nutzbar und wird beim nächsten Autosave mitgespeichert.
+      })
+    }
+    return token
+  }
+
+  function buildRsvpUrl() {
+    const token = ensureRsvpToken()
+    return `${window.location.origin}${window.location.pathname}?rsvp=${encodeURIComponent(token)}&board=${encodeURIComponent(boardId)}`
+  }
+
+  function openReminderDialog() {
+    const token = ensureRsvpToken()
+    const partyName = board.partyDetails.forWhom.trim() || board.topic.trim() || 'deine Party'
+    const partyDate = formatPartyDate(board.partyDetails.date, board.partyDetails.time)
+    const deadline = formatDeadline(board.partyDetails.responseDeadline) ?? undefined
+    const text = buildGuestReminderText({
+      partyName,
+      partyDate,
+      responseDeadline: deadline,
+      rsvpUrl: `${window.location.origin}${window.location.pathname}?rsvp=${encodeURIComponent(token)}&board=${encodeURIComponent(boardId)}`,
+    })
+    setReminderText(text)
+    setReminderCopyState('idle')
+    setReminderOpen(true)
+  }
 
   async function handleGenerate() {
     if (loadingIdeas) return
@@ -291,22 +368,7 @@ export function BoardView({
   }
 
   async function handleShareRsvpLink() {
-    let token = board.rsvpToken.trim()
-    if (!token) {
-      token = createRsvpToken()
-      const nextBoard = { ...board, rsvpToken: token }
-      setBoard(nextBoard)
-      try {
-        await saveBoardRemote(
-          boardId,
-          nextBoard.partyDetails.forWhom.trim() || nextBoard.topic.trim() || 'Neues Board',
-          nextBoard
-        )
-      } catch {
-        // Link bleibt lokal nutzbar; Board speichert den Token beim nächsten Autosave nach.
-      }
-    }
-    const url = `${window.location.origin}${window.location.pathname}?rsvp=${encodeURIComponent(token)}&board=${encodeURIComponent(boardId)}`
+    const url = buildRsvpUrl()
     try {
       await navigator.clipboard.writeText(url)
       setShareState('copied')
@@ -324,6 +386,31 @@ export function BoardView({
         shareTimerRef.current = null
       }, 1800)
     }
+  }
+
+  async function handleCopyReminderText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      setReminderCopyState('copied')
+      if (reminderTimerRef.current !== null) window.clearTimeout(reminderTimerRef.current)
+      reminderTimerRef.current = window.setTimeout(() => {
+        setReminderCopyState('idle')
+        reminderTimerRef.current = null
+      }, 1800)
+    } catch {
+      window.prompt('Erinnerungstext kopieren', text)
+      setReminderCopyState('copied')
+      if (reminderTimerRef.current !== null) window.clearTimeout(reminderTimerRef.current)
+      reminderTimerRef.current = window.setTimeout(() => {
+        setReminderCopyState('idle')
+        reminderTimerRef.current = null
+      }, 1800)
+    }
+  }
+
+  function handleOpenWhatsApp(text: string) {
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   async function handleGenerateShoppingList() {
@@ -612,8 +699,10 @@ export function BoardView({
   const respondedGuests = board.partyDetails.guests.filter(
     (guest) => guest.status === 'zugesagt' || guest.status === 'abgesagt'
   ).length
+  const pendingGuests = board.partyDetails.guests.filter((guest) => guest.status === 'eingeladen')
   const responseDeadlineLabel = formatResponseDeadline(board.partyDetails.responseDeadline)
   const responseDeadlineExpired = isDeadlineExpired(board.partyDetails.responseDeadline)
+  const canPrepareReminder = pendingGuests.length > 0
 
   useEffect(() => {
     if (!showOverview) setEditingDetails(false)
@@ -706,23 +795,38 @@ export function BoardView({
             <div className="space-y-4">
               <div className="rounded-[1.4rem] border border-orange-100 bg-orange-50/70 px-4 py-3 shadow-sm">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-semibold text-stone-700">
-                    {respondedGuests} von {board.partyDetails.guests.length} Gästen haben geantwortet
-                  </p>
-                  {board.partyDetails.responseDeadline && (
-                    <p
-                      className={`text-sm font-medium ${
-                        responseDeadlineExpired ? 'text-rose-600' : 'text-amber-700'
-                      }`}
-                    >
-                      {responseDeadlineExpired
-                        ? 'Frist abgelaufen'
-                        : responseDeadlineLabel
-                          ? `Antwort bis: ${responseDeadlineLabel}`
-                          : 'Antwort bis gesetzt'}
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm font-semibold text-stone-700">
+                      {respondedGuests} von {board.partyDetails.guests.length} Gästen haben geantwortet
                     </p>
+                    {board.partyDetails.responseDeadline && (
+                      <p
+                        className={`text-xs font-medium ${
+                          responseDeadlineExpired ? 'text-rose-600' : 'text-amber-700'
+                        }`}
+                      >
+                        {responseDeadlineExpired
+                          ? 'Frist abgelaufen'
+                          : responseDeadlineLabel
+                            ? `Antwort bis: ${responseDeadlineLabel}`
+                            : 'Antwort bis gesetzt'}
+                      </p>
+                    )}
+                  </div>
+                  {canPrepareReminder && (
+                    <button
+                      onClick={openReminderDialog}
+                      className="rounded-2xl border border-amber-200 bg-white px-4 py-2.5 text-sm font-semibold text-amber-700 shadow-sm transition hover:bg-amber-50"
+                    >
+                      Erinnerung vorbereiten
+                    </button>
                   )}
                 </div>
+                {!canPrepareReminder && (
+                  <p className="mt-2 text-xs font-medium text-stone-400">
+                    Alle Gäste haben bereits geantwortet.
+                  </p>
+                )}
               </div>
 
               <PartyDetailsFields
@@ -734,6 +838,84 @@ export function BoardView({
                 showGuestList
                 showCalendar={false}
               />
+            </div>
+          )}
+
+          {reminderOpen && canPrepareReminder && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/35 p-4 backdrop-blur-sm"
+              onClick={() => {
+                setReminderOpen(false)
+                setReminderCopyState('idle')
+                setReminderText('')
+              }}
+            >
+              <div
+                className="w-full max-w-2xl rounded-[2rem] border border-white bg-white p-6 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">
+                      Erinnerung
+                    </p>
+                    <h3 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800">
+                      RSVP-Erinnerung vorbereiten
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-stone-500">
+                      Vorschau des Textes, den du an Gäste schicken kannst, die noch nicht geantwortet haben.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setReminderOpen(false)
+                      setReminderCopyState('idle')
+                      setReminderText('')
+                    }}
+                    className="rounded-full px-3 py-1.5 text-sm font-medium text-stone-500 transition hover:bg-stone-100"
+                  >
+                    Schließen
+                  </button>
+                </div>
+
+                <div className="mt-5 rounded-[1.4rem] border border-orange-100 bg-orange-50/60 p-4">
+                  <p className="text-sm font-semibold text-stone-700">Vorschau</p>
+                  <p className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-stone-700 shadow-sm">
+                    {reminderText}
+                  </p>
+                </div>
+
+                <div className="mt-5 rounded-[1.4rem] border border-orange-100 bg-orange-50/60 p-4">
+                  <p className="text-sm font-semibold text-stone-700">
+                    Noch offen: {pendingGuests.length} Gast{pendingGuests.length === 1 ? '' : 'e'}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {pendingGuests.map((guest) => (
+                      <span
+                        key={guest.id}
+                        className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-stone-700 shadow-sm"
+                      >
+                        {guest.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                  <button
+                    onClick={() => void handleCopyReminderText(reminderText)}
+                    className="rounded-2xl bg-orange-500 px-4 py-3 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600"
+                  >
+                    {reminderCopyState === 'copied' ? 'Kopiert!' : 'Text kopieren'}
+                  </button>
+                  <button
+                    onClick={() => handleOpenWhatsApp(reminderText)}
+                    className="rounded-2xl border border-green-200 bg-white px-4 py-3 font-semibold text-green-700 shadow-sm transition hover:bg-green-50"
+                  >
+                    Per WhatsApp teilen
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
