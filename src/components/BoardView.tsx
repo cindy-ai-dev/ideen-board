@@ -97,7 +97,17 @@ function mergePlanningSuggestions(
 // Die komplette Ansicht EINES Boards. Wird in App per key={boardId}
 // eingebunden – beim Board-Wechsel baut React die Komponente neu auf
 // und useBoard lädt sauber den Stand des neuen Boards.
-export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan?: () => void }) {
+export type BoardSection = 'overview' | 'guests' | 'ideas' | 'shopping' | 'timeline'
+
+export function BoardView({
+  boardId,
+  onOpenPlan,
+  activeSection = 'overview',
+}: {
+  boardId: string
+  onOpenPlan?: () => void
+  activeSection?: BoardSection
+}) {
   const [board, setBoard] = useBoard(boardId)
   const [urlInput, setUrlInput] = useState('')
   const [loadingIdeas, setLoadingIdeas] = useState(false)
@@ -428,79 +438,159 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
   }
 
   const partySummary = summarizePartyDetails(board.partyDetails)
+  const showOverview = activeSection === 'overview'
+  const showGuests = activeSection === 'guests'
+  const showIdeas = activeSection === 'ideas'
+  const showShopping = activeSection === 'shopping'
+  const showTimeline = activeSection === 'timeline'
 
   return (
     <>
-      <section className="mb-8 rounded-[1.85rem] border border-white bg-white/80 p-5 shadow-[0_12px_35px_rgba(119,75,43,0.08)] backdrop-blur sm:p-6">
-        <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">
-              Party-Details
-            </p>
-            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800 sm:text-3xl">
-              {board.partyDetails.forWhom || 'Noch kein Anlass eingetragen'}
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500">
-              Diese Angaben werden in localStorage gespeichert und als Kontext für die KI genutzt.
-            </p>
+      {(showOverview || showGuests) && (
+        <section className="mb-8 rounded-[1.85rem] border border-white bg-white/80 p-5 shadow-[0_12px_35px_rgba(119,75,43,0.08)] backdrop-blur sm:p-6">
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">
+                {showGuests ? 'Gästeliste' : 'Party-Details'}
+              </p>
+              <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800 sm:text-3xl">
+                {showGuests
+                  ? board.partyDetails.forWhom || 'Noch kein Anlass eingetragen'
+                  : board.partyDetails.forWhom || 'Noch kein Anlass eingetragen'}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500">
+                {showGuests
+                  ? 'Hier verwaltest du die Gästeliste und den RSVP-Link.'
+                  : 'Diese Angaben werden in localStorage gespeichert und als Kontext für die KI genutzt.'}
+              </p>
+            </div>
+            {partySummary && showOverview && (
+              <div className="max-w-sm rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-3 text-sm leading-relaxed text-stone-600">
+                {partySummary}
+              </div>
+            )}
           </div>
-          {partySummary && (
-            <div className="max-w-sm rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-3 text-sm leading-relaxed text-stone-600">
-              {partySummary}
+
+          <PartyDetailsFields
+            value={board.partyDetails}
+            onChange={updatePartyDetails}
+            onShareRsvpLink={handleShareRsvpLink}
+            shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
+            showDetails={showOverview}
+            showGuestList={showGuests}
+            showCalendar={showOverview}
+          />
+
+          <div className="mt-5 flex flex-wrap justify-end gap-2 print:hidden">
+            <button
+              onClick={onOpenPlan}
+              className="rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700"
+            >
+              Gesamtplan ansehen
+            </button>
+          </div>
+        </section>
+      )}
+
+      {showIdeas && (
+        <>
+          <div className="mb-12 flex flex-col gap-3 rounded-[1.75rem] border border-white bg-white/80 p-4 shadow-[0_12px_35px_rgba(119,75,43,0.08)] sm:p-5 lg:flex-row">
+            <div className="flex flex-1 gap-2">
+              <button
+                onClick={handleGenerate}
+                disabled={loadingIdeas}
+                className="whitespace-nowrap rounded-2xl bg-orange-500 px-5 py-3 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 hover:shadow-md disabled:opacity-40"
+              >
+                {loadingIdeas ? 'Denkt nach…' : '✨ Ideen für diese Party holen'}
+              </button>
+            </div>
+            <div className="flex flex-1 gap-2">
+              <input
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddLink()}
+                placeholder="Link einwerfen (YouTube, Amazon, …)"
+                className="flex-1 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3 text-stone-800 placeholder-stone-400 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
+              />
+              <button
+                onClick={handleAddLink}
+                disabled={loadingLink || !urlInput.trim()}
+                className="whitespace-nowrap rounded-2xl bg-sky-500 px-5 py-3 font-semibold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600 hover:shadow-md disabled:opacity-40"
+              >
+                {loadingLink ? 'Lädt…' : '🔗 Hinzufügen'}
+              </button>
+            </div>
+            <button
+              onClick={() => setEditor('new')}
+              className="whitespace-nowrap rounded-2xl border-2 border-dashed border-orange-200 px-5 py-3 font-semibold text-orange-600 transition hover:border-orange-400 hover:bg-orange-50"
+            >
+              ＋ Eigene Idee
+            </button>
+          </div>
+
+          {board.tiles.length === 0 && !loadingIdeas && (
+            <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
+              <p className="mb-4 text-5xl">🎈</p>
+              <p className="mx-auto max-w-md leading-relaxed">
+                Noch leer hier. Trag oben die Party-Details ein und hol dir dann ein Ideen-Startset.
+              </p>
             </div>
           )}
-        </div>
 
-        <PartyDetailsFields
-          value={board.partyDetails}
-          onChange={updatePartyDetails}
-          onShareRsvpLink={handleShareRsvpLink}
-          shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
-        />
-
-        <div className="mt-5 flex flex-wrap justify-end gap-2 print:hidden">
-          <button
-            onClick={onOpenPlan}
-            className="rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700"
-          >
-            Gesamtplan ansehen
-          </button>
-        </div>
-      </section>
-
-      <div className="mb-12 flex flex-col gap-3 rounded-[1.75rem] border border-white bg-white/80 p-4 shadow-[0_12px_35px_rgba(119,75,43,0.08)] sm:p-5 lg:flex-row">
-        <div className="flex flex-1 gap-2">
-          <button
-            onClick={handleGenerate}
-            disabled={loadingIdeas}
-            className="whitespace-nowrap rounded-2xl bg-orange-500 px-5 py-3 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 hover:shadow-md disabled:opacity-40"
-          >
-            {loadingIdeas ? 'Denkt nach…' : '✨ Ideen für diese Party holen'}
-          </button>
-        </div>
-        <div className="flex flex-1 gap-2">
-          <input
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddLink()}
-            placeholder="Link einwerfen (YouTube, Amazon, …)"
-            className="flex-1 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3 text-stone-800 placeholder-stone-400 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
-          />
-          <button
-            onClick={handleAddLink}
-            disabled={loadingLink || !urlInput.trim()}
-            className="whitespace-nowrap rounded-2xl bg-sky-500 px-5 py-3 font-semibold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600 hover:shadow-md disabled:opacity-40"
-          >
-            {loadingLink ? 'Lädt…' : '🔗 Hinzufügen'}
-          </button>
-        </div>
-        <button
-          onClick={() => setEditor('new')}
-          className="whitespace-nowrap rounded-2xl border-2 border-dashed border-orange-200 px-5 py-3 font-semibold text-orange-600 transition hover:border-orange-400 hover:bg-orange-50"
-        >
-          ＋ Eigene Idee
-        </button>
-      </div>
+          {/* Die Wand: Kategorien als Abschnitte, Kacheln im Grid */}
+          <div className="space-y-12">
+            {[...grouped.entries()].map(([category, tiles]) => {
+              const color = categoryColor(category)
+              const isLinkCategory = tiles.every((t) => t.kind === 'link')
+              return (
+                <section
+                  key={category}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                  }}
+                  onDragEnter={() => setDragOver(category)}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null)
+                  }}
+                  onDrop={(e) => handleDrop(category, e)}
+                  className={`rounded-[1.75rem] p-1 transition-colors ${
+                    dragOver === category ? 'bg-orange-100/70 ring-2 ring-orange-200' : ''
+                  }`}
+                >
+                  <div className="mb-5 flex items-center gap-3 px-1">
+                    <h2
+                      className={`inline-block rounded-full px-4 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] ${color.bg} ${color.text}`}
+                    >
+                      {category} · {tiles.length}
+                    </h2>
+                    {!isLinkCategory && (
+                      <button
+                        onClick={() => handleMoreIdeas(category)}
+                        disabled={loadingMore !== null}
+                        className="rounded-full bg-white/70 px-3 py-1.5 text-sm font-semibold text-stone-500 shadow-sm transition hover:text-orange-700 disabled:opacity-40"
+                      >
+                        {loadingMore === category ? 'Denkt nach…' : '✨ mehr davon'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {tiles.map((tile) => (
+                      <TileCard
+                        key={tile.id}
+                        tile={tile}
+                        onDelete={handleDelete}
+                        onEdit={(t) => setEditor(t)}
+                        onToggleSelected={handleToggleSelected}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       {error && (
         <div className="mb-8 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-rose-700 shadow-sm">
@@ -508,99 +598,37 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
         </div>
       )}
 
-      {board.tiles.length === 0 && !loadingIdeas && (
-        <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
-          <p className="mb-4 text-5xl">🎈</p>
-          <p className="mx-auto max-w-md leading-relaxed">
-            Noch leer hier. Trag oben die Party-Details ein und hol dir dann ein Ideen-Startset.
-          </p>
+      {showShopping && (
+        <div className="mt-12">
+          <ShoppingListSection
+            items={board.shoppingList}
+            partyDetails={board.partyDetails}
+            editable
+            generating={loadingShopping}
+            selectedIdeasCount={board.tiles.filter((tile) => tile.selected).length}
+            onGenerate={handleGenerateShoppingList}
+            onToggleItem={handleToggleShoppingItem}
+            onAddItem={handleAddShoppingItem}
+            onRemoveItem={handleRemoveShoppingItem}
+          />
         </div>
       )}
 
-      {/* Die Wand: Kategorien als Abschnitte, Kacheln im Grid */}
-      <div className="space-y-12">
-        {[...grouped.entries()].map(([category, tiles]) => {
-          const color = categoryColor(category)
-          const isLinkCategory = tiles.every((t) => t.kind === 'link')
-          return (
-            <section
-              key={category}
-              // dragOver muss preventDefault aufrufen, sonst erlaubt der
-              // Browser das Droppen hier gar nicht erst (HTML5-Eigenheit)
-              onDragOver={(e) => {
-                e.preventDefault()
-                e.dataTransfer.dropEffect = 'move'
-              }}
-              onDragEnter={() => setDragOver(category)}
-              onDragLeave={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null)
-              }}
-              onDrop={(e) => handleDrop(category, e)}
-              className={`rounded-[1.75rem] p-1 transition-colors ${
-                dragOver === category ? 'bg-orange-100/70 ring-2 ring-orange-200' : ''
-              }`}
-            >
-              <div className="mb-5 flex items-center gap-3 px-1">
-                <h2
-                  className={`inline-block rounded-full px-4 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] ${color.bg} ${color.text}`}
-                >
-                  {category} · {tiles.length}
-                </h2>
-                {/* "Mehr davon" nur für Ideen-Kategorien – für die Link-Sammlung
-                    kann die KI ja keine Links erfinden */}
-                {!isLinkCategory && (
-                  <button
-                    onClick={() => handleMoreIdeas(category)}
-                    disabled={loadingMore !== null}
-                    className="rounded-full bg-white/70 px-3 py-1.5 text-sm font-semibold text-stone-500 shadow-sm transition hover:text-orange-700 disabled:opacity-40"
-                  >
-                    {loadingMore === category ? 'Denkt nach…' : '✨ mehr davon'}
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {tiles.map((tile) => (
-                  <TileCard
-                    key={tile.id}
-                    tile={tile}
-                    onDelete={handleDelete}
-                    onEdit={(t) => setEditor(t)}
-                    onToggleSelected={handleToggleSelected}
-                  />
-                ))}
-              </div>
-            </section>
-          )
-        })}
-      </div>
-
-      <div className="mt-12">
-        <ShoppingListSection
-          items={board.shoppingList}
-          partyDetails={board.partyDetails}
-          editable
-          generating={loadingShopping}
-          selectedIdeasCount={board.tiles.filter((tile) => tile.selected).length}
-          onGenerate={handleGenerateShoppingList}
-          onToggleItem={handleToggleShoppingItem}
-          onAddItem={handleAddShoppingItem}
-          onRemoveItem={handleRemoveShoppingItem}
-        />
-      </div>
-
-      <div className="mt-12">
-        <TaskTimelineSection
-          items={board.planningTasks}
-          partyDetails={board.partyDetails}
-          editable
-          generating={loadingTasks}
-          selectedIdeasCount={board.tiles.filter((tile) => tile.selected).length}
-          onGenerate={handleGenerateTasks}
-          onToggleItem={handleTogglePlanningTask}
-          onAddItem={handleAddPlanningTask}
-          onRemoveItem={handleRemovePlanningTask}
-        />
-      </div>
+      {showTimeline && (
+        <div className="mt-12">
+          <TaskTimelineSection
+            items={board.planningTasks}
+            partyDetails={board.partyDetails}
+            editable
+            generating={loadingTasks}
+            selectedIdeasCount={board.tiles.filter((tile) => tile.selected).length}
+            onGenerate={handleGenerateTasks}
+            onToggleItem={handleTogglePlanningTask}
+            onAddItem={handleAddPlanningTask}
+            onRemoveItem={handleRemovePlanningTask}
+          />
+        </div>
+      )}
 
       {editor !== null && (
         <TileEditor

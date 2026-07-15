@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useBoards } from './lib/storage'
-import { BoardView } from './components/BoardView'
+import { BoardView, type BoardSection } from './components/BoardView'
 import { BoardPlanView } from './components/BoardPlanView'
 import { GuestRsvpView } from './components/GuestRsvpView'
 import { NameDialog } from './components/NameDialog'
@@ -46,18 +46,95 @@ function formatPartyDate(details: PartyDetails): string {
   return `${datePart}, ${details.time} Uhr`
 }
 
-function getViewFromUrl(): 'board' | 'plan' {
-  if (typeof window === 'undefined') return 'board'
-  const params = new URLSearchParams(window.location.search)
-  return params.get('view') === 'plan' ? 'plan' : 'board'
+type WorkspaceView = BoardSection | 'plan'
+
+const VIEW_LABELS: Record<WorkspaceView, string> = {
+  overview: 'Übersicht',
+  guests: 'Gästeliste',
+  ideas: 'Ideen-Board',
+  shopping: 'Einkaufsliste',
+  timeline: 'Zeitstrahl',
+  plan: 'Gesamtplan',
 }
 
-function setViewInUrl(view: 'board' | 'plan') {
+const VIEW_ORDER: WorkspaceView[] = ['overview', 'guests', 'ideas', 'shopping', 'timeline', 'plan']
+
+function isWorkspaceView(value: string | null): value is WorkspaceView {
+  return (
+    value === 'overview' ||
+    value === 'guests' ||
+    value === 'ideas' ||
+    value === 'shopping' ||
+    value === 'timeline' ||
+    value === 'plan'
+  )
+}
+
+function getViewFromUrl(): WorkspaceView {
+  if (typeof window === 'undefined') return 'overview'
+  const params = new URLSearchParams(window.location.search)
+  const view = params.get('view')
+  return isWorkspaceView(view) ? view : 'overview'
+}
+
+function setViewInUrl(view: WorkspaceView) {
   if (typeof window === 'undefined') return
   const url = new URL(window.location.href)
-  if (view === 'plan') url.searchParams.set('view', 'plan')
-  else url.searchParams.delete('view')
+  if (view === 'overview') url.searchParams.delete('view')
+  else url.searchParams.set('view', view)
   window.history.replaceState({}, '', url)
+}
+
+function BoardAreaNav({
+  view,
+  onChange,
+}: {
+  view: WorkspaceView
+  onChange: (next: WorkspaceView) => void
+}) {
+  return (
+    <>
+      <div className="hidden lg:block">
+        <div className="mb-6 rounded-[1.5rem] border border-orange-100 bg-white/75 p-2 shadow-sm backdrop-blur">
+          <div className="grid grid-cols-6 gap-2">
+            {VIEW_ORDER.map((item) => (
+              <button
+                key={item}
+                onClick={() => onChange(item)}
+                className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                  view === item
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'bg-white/60 text-stone-600 hover:bg-orange-50 hover:text-orange-700'
+                }`}
+              >
+                {VIEW_LABELS[item]}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-orange-100 bg-white/95 px-3 py-2 shadow-[0_-10px_30px_rgba(119,75,43,0.12)] backdrop-blur">
+          <div className="mx-auto grid max-w-7xl grid-cols-3 gap-2 sm:grid-cols-6">
+            {VIEW_ORDER.map((item) => (
+              <button
+                key={item}
+                onClick={() => onChange(item)}
+                className={`rounded-2xl px-2 py-2 text-[11px] font-semibold transition ${
+                  view === item
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'bg-orange-50 text-stone-600'
+                }`}
+              >
+                {VIEW_LABELS[item]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="h-24" aria-hidden="true" />
+      </div>
+    </>
+  )
 }
 
 function getRsvpTokenFromUrl(): string | null {
@@ -78,7 +155,7 @@ function HostApp() {
   const { boards, activeId, setActiveId, createBoard, renameBoard, removeBoard } = useBoards()
   const [dialog, setDialog] = useState<'new' | 'rename' | null>(null)
   const [newBoardDetails, setNewBoardDetails] = useState<PartyDetails>(createEmptyPartyDetails())
-  const [view, setView] = useState<'board' | 'plan'>(() => getViewFromUrl())
+  const [view, setView] = useState<WorkspaceView>(() => getViewFromUrl())
 
   useEffect(() => {
     setViewInUrl(view)
@@ -114,7 +191,7 @@ function HostApp() {
   }
 
   return (
-    <div className="min-h-screen max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+    <div className="min-h-screen max-w-7xl mx-auto px-4 py-6 pb-28 sm:px-6 sm:py-10 lg:px-8 lg:pb-10">
       <header className={`mb-7 rounded-[2rem] border border-white/80 bg-white/75 px-6 py-7 shadow-[0_12px_40px_rgba(119,75,43,0.10)] backdrop-blur sm:px-9 sm:py-8 ${view === 'plan' ? 'hidden' : ''}`}>
         <p className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-orange-500">Planen · Sammeln · Feiern</p>
         <h1 className="text-4xl font-extrabold tracking-tight text-stone-800 sm:text-5xl">Ideen-Board</h1>
@@ -176,7 +253,7 @@ function HostApp() {
       </section>
 
       {/* Board-Leiste: ein Pill pro Board + Verwaltung */}
-      <div className={`mb-10 flex flex-wrap items-center gap-2.5 rounded-2xl border border-orange-100 bg-white/65 p-3 shadow-sm backdrop-blur ${view === 'plan' ? 'hidden' : ''}`}>
+      <div className={`mb-4 flex flex-wrap items-center gap-2.5 rounded-2xl border border-orange-100 bg-white/65 p-3 shadow-sm backdrop-blur ${view === 'plan' ? 'hidden' : ''}`}>
         {boards.map((b) => (
           <button
             key={b.id}
@@ -214,29 +291,36 @@ function HostApp() {
         </button>
       </div>
 
-      {/* key={activeId}: beim Board-Wechsel wird die Ansicht komplett neu
-          aufgebaut und lädt sauber den Stand des gewählten Boards */}
-      {view === 'board' ? (
+      {view !== 'plan' && <BoardAreaNav view={view} onChange={setView} />}
+
+      {view === 'plan' ? (
         active ? (
-          <BoardView key={activeId} boardId={activeId} onOpenPlan={() => setView('plan')} />
+          <BoardPlanView
+            key={`${activeId}:plan`}
+            boardId={activeId}
+            onBack={() => setView('overview')}
+          />
         ) : (
           <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
             Lade Boards…
           </div>
         )
-      ) : active ? (
-        <BoardPlanView
-          key={`${activeId}:plan`}
-          boardId={activeId}
-          onBack={() => setView('board')}
-        />
       ) : (
-        <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
-          Lade Boards…
-        </div>
+        active ? (
+          <BoardView
+            key={activeId}
+            boardId={activeId}
+            activeSection={view}
+            onOpenPlan={() => setView('plan')}
+          />
+        ) : (
+          <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
+            Lade Boards…
+          </div>
+        )
       )}
 
-      {dialog === 'new' && view === 'board' && (
+      {dialog === 'new' && view !== 'plan' && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/30 p-4 backdrop-blur-sm"
           onClick={() => setDialog(null)}
