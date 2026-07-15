@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useBoards } from './lib/storage'
+import { useMemo, useState } from 'react'
+import { loadBoard, useBoards } from './lib/storage'
 import { BoardView } from './components/BoardView'
 import { NameDialog } from './components/NameDialog'
 import { PartyDetailsFields } from './components/PartyDetailsFields'
@@ -23,12 +23,46 @@ function trimPartyDetails(details: PartyDetails): PartyDetails {
   }
 }
 
+function parsePartyDate(details: PartyDetails): number {
+  if (!details.date) return Number.POSITIVE_INFINITY
+  const raw = `${details.date}T${details.time || '00:00'}`
+  const timestamp = new Date(raw).getTime()
+  return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY
+}
+
+function formatPartyDate(details: PartyDetails): string {
+  if (!details.date) return 'Ohne Datum'
+  const date = new Date(details.date)
+  if (Number.isNaN(date.getTime())) return details.date
+  const datePart = new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date)
+  if (!details.time) return datePart
+  return `${datePart}, ${details.time} Uhr`
+}
+
 export default function App() {
   const { boards, activeId, setActiveId, createBoard, renameBoard, removeBoard } = useBoards()
   const [dialog, setDialog] = useState<'new' | 'rename' | null>(null)
   const [newBoardDetails, setNewBoardDetails] = useState<PartyDetails>(createEmptyPartyDetails())
 
   const active = boards.find((b) => b.id === activeId) ?? boards[0]
+  const boardSummaries = useMemo(() => {
+    return boards
+      .map((board) => ({
+        meta: board,
+        details: loadBoard(board.id).partyDetails,
+      }))
+      .sort((a, b) => {
+        const left = parsePartyDate(a.details)
+        const right = parsePartyDate(b.details)
+        if (left !== right) return left - right
+        if (left === Number.POSITIVE_INFINITY) return a.meta.createdAt - b.meta.createdAt
+        return a.meta.name.localeCompare(b.meta.name, 'de')
+      })
+  }, [boards])
 
   function handleDeleteBoard() {
     const ok = window.confirm(
@@ -51,6 +85,52 @@ export default function App() {
           Party-Details festhalten, KI-Ideen generieren und Links sammeln.
         </p>
       </header>
+
+      <section className="mb-8 rounded-[1.85rem] border border-orange-100 bg-white/75 p-5 shadow-[0_12px_35px_rgba(119,75,43,0.08)] backdrop-blur">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">
+              Board-Übersicht
+            </p>
+            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800">
+              Alle Partys nach Datum sortiert
+            </h2>
+          </div>
+          <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+            {boardSummaries.length} Boards
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {boardSummaries.map(({ meta, details }) => {
+            const isActive = meta.id === activeId
+            return (
+              <button
+                key={meta.id}
+                onClick={() => setActiveId(meta.id)}
+                className={`flex w-full flex-col gap-2 rounded-[1.4rem] border px-4 py-3 text-left transition sm:flex-row sm:items-center sm:justify-between ${
+                  isActive
+                    ? 'border-orange-200 bg-orange-50/80 shadow-sm'
+                    : 'border-orange-100 bg-white/80 hover:border-orange-200 hover:bg-orange-50/60'
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-base font-bold text-stone-800">
+                    {details.forWhom || meta.name}
+                  </p>
+                  <p className="mt-1 text-sm text-stone-500">
+                    {details.theme ? `Motto: ${details.theme}` : 'Kein Motto gesetzt'}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1 text-sm text-stone-500 sm:text-right">
+                  <span className="font-medium text-stone-700">{formatPartyDate(details)}</span>
+                  <span>{details.location || 'Ort offen'}</span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </section>
 
       {/* Board-Leiste: ein Pill pro Board + Verwaltung */}
       <div className="mb-10 flex flex-wrap items-center gap-2.5 rounded-2xl border border-orange-100 bg-white/65 p-3 shadow-sm backdrop-blur">

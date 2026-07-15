@@ -13,9 +13,85 @@ function updateGuestStatus(current: PartyDetails, id: string, status: GuestStatu
   }
 }
 
+function escapeIcsText(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/,/g, '\\,')
+    .replace(/;/g, '\\;')
+}
+
+function toIcsDateTime(date: string, time: string): string | null {
+  if (!date || !time) return null
+  const local = new Date(`${date}T${time}`)
+  if (Number.isNaN(local.getTime())) return null
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return (
+    `${local.getFullYear()}${pad(local.getMonth() + 1)}${pad(local.getDate())}` +
+    `T${pad(local.getHours())}${pad(local.getMinutes())}${pad(local.getSeconds())}`
+  )
+}
+
+function buildCalendarFile(value: PartyDetails): string | null {
+  const start = toIcsDateTime(value.date, value.time)
+  if (!start) return null
+  const startDate = new Date(`${value.date}T${value.time}`)
+  if (Number.isNaN(startDate.getTime())) return null
+  const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const end =
+    `${endDate.getFullYear()}${pad(endDate.getMonth() + 1)}${pad(endDate.getDate())}` +
+    `T${pad(endDate.getHours())}${pad(endDate.getMinutes())}${pad(endDate.getSeconds())}`
+
+  const title = escapeIcsText(value.forWhom.trim() || value.theme.trim() || 'Party')
+  const location = escapeIcsText(value.location.trim())
+  const descriptionParts = [value.theme.trim() ? `Motto: ${value.theme.trim()}` : '', `Gäste: ${value.guestCount ?? 'unbekannt'}`]
+    .filter(Boolean)
+    .join('\\n')
+  const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Ideen-Board//Party Planner//DE',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${crypto.randomUUID()}`,
+    `DTSTAMP:${dtStamp}`,
+    `SUMMARY:${title}`,
+    location ? `LOCATION:${location}` : null,
+    descriptionParts ? `DESCRIPTION:${escapeIcsText(descriptionParts)}` : null,
+    `DTSTART:${start}`,
+    `DTEND:${end}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ]
+    .filter((line): line is string => line !== null)
+    .join('\r\n')
+}
+
+function downloadCalendar(value: PartyDetails) {
+  const content = buildCalendarFile(value)
+  if (!content) return
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const fileName = `${(value.forWhom.trim() || value.theme.trim() || 'party')
+    .toLowerCase()
+    .replace(/[^a-z0-9äöüß]+/gi, '-')}-termin.ics`
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName.replace(/-+/g, '-').replace(/^-|-$/g, '') || 'party-termin.ics'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export function PartyDetailsFields({ value, onChange }: Props) {
   const [guestName, setGuestName] = useState('')
   const [guestStatus, setGuestStatus] = useState<GuestStatus>('eingeladen')
+  const calendarReady = Boolean(value.date && value.time)
 
   function updateField<K extends keyof PartyDetails>(key: K, nextValue: PartyDetails[K]) {
     onChange({ ...value, [key]: nextValue })
@@ -120,6 +196,29 @@ export function PartyDetailsFields({ value, onChange }: Props) {
             <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
               {value.guests.length} Einträge
             </span>
+          )}
+        </div>
+
+        <div className="mb-4 rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-stone-700">Kalender-Termin</p>
+              <p className="mt-1 text-sm leading-relaxed text-stone-500">
+                Datum und Uhrzeit eintragen, dann kannst du die Party als `.ics` herunterladen.
+              </p>
+            </div>
+            <button
+              onClick={() => downloadCalendar(value)}
+              disabled={!calendarReady}
+              className="rounded-2xl bg-amber-500 px-4 py-2.5 font-semibold text-white shadow-sm shadow-amber-200 transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Zum Kalender hinzufügen
+            </button>
+          </div>
+          {!calendarReady && (
+            <p className="mt-2 text-xs font-medium text-amber-700">
+              Dafür müssen Datum und Uhrzeit ausgefüllt sein.
+            </p>
           )}
         </div>
 
