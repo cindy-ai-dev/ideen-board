@@ -417,7 +417,8 @@ export function buildTasksUserMessageCompact(
 export function buildScheduleUserMessage(
   topic: string,
   details: PartyDetails | null | undefined,
-  selectedTiles: ShoppingSourceTile[]
+  selectedTiles: ShoppingSourceTile[],
+  wishes?: string
 ): string {
   const lines = [
     buildContextBlock(topic, details),
@@ -433,6 +434,9 @@ export function buildScheduleUserMessage(
     '- Gib diese Backup-Punkte als `backupItems` zurück.',
     '- Die Backup-Punkte sollen kurze Titel und knappe Notizen haben und eher Indoor-Alternativen vorschlagen.',
     '- Antworte auf Deutsch.',
+    wishes?.trim()
+      ? `Zusätzliche Wünsche des Gastgebers: ${wishes.trim()}`
+      : 'Zusätzliche Wünsche des Gastgebers: keine',
     'Ausgewählte Ideen als Kontext:',
     ...selectedTiles.map(
       (tile) =>
@@ -445,7 +449,8 @@ export function buildScheduleUserMessage(
 export function buildScheduleUserMessageCompact(
   topic: string,
   details: PartyDetails | null | undefined,
-  selectedTiles: ShoppingSourceTile[]
+  selectedTiles: ShoppingSourceTile[],
+  wishes?: string
 ): string {
   const lines = [
     buildContextBlock(topic, details),
@@ -457,6 +462,9 @@ export function buildScheduleUserMessageCompact(
     '- minutesFromStart als ganze Zahl.',
     '- Alter sowie Vorlieben/Besonderheiten berücksichtigen.',
     '- Zusätzlich 2 bis 4 Backup-Punkte als `backupItems` für schlechtes Wetter oder Indoor-Alternativen.',
+    wishes?.trim()
+      ? `Zusätzliche Wünsche des Gastgebers: ${wishes.trim()}`
+      : 'Zusätzliche Wünsche des Gastgebers: keine',
     'Ausgewählte Ideen:',
     ...selectedTiles.map((tile) => `- ${tile.category}: ${tile.title}`),
   ]

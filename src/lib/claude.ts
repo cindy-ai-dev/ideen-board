@@ -219,13 +219,14 @@ export async function generatePlanningTasks(
 export async function generatePartySchedule(
   topic: string,
   partyDetails: PartyDetails,
-  selectedTiles: ShoppingSourceTile[]
+  selectedTiles: ShoppingSourceTile[],
+  wishes?: string
 ): Promise<RawPartyScheduleResponse> {
   if (import.meta.env.DEV) {
     try {
       const result = await callOpenAIDirect<RawPartyScheduleResponse>(
         SYSTEM_SCHEDULE,
-        buildScheduleUserMessage(topic, partyDetails, selectedTiles),
+        buildScheduleUserMessage(topic, partyDetails, selectedTiles, wishes),
         SCHEDULE_SCHEMA,
         'party_schedule',
         1800
@@ -235,7 +236,7 @@ export async function generatePartySchedule(
       if (!isTruncatedJsonError(error)) throw error
       const retry = await callOpenAIDirect<RawPartyScheduleResponse>(
         SYSTEM_SCHEDULE,
-        buildScheduleUserMessageCompact(topic, partyDetails, selectedTiles),
+        buildScheduleUserMessageCompact(topic, partyDetails, selectedTiles, wishes),
         SCHEDULE_SCHEMA,
         'party_schedule',
         1000
@@ -248,6 +249,7 @@ export async function generatePartySchedule(
     topic,
     partyDetails,
     selectedTiles,
+    wishes,
   })
   return response
 }

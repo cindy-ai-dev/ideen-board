@@ -94,6 +94,14 @@ function buildGuestReminderText(options: {
   return `${intro}${deadline} Sag uns Bescheid, ob du kommst: ${options.rsvpUrl}`
 }
 
+function buildRsvpShareText(options: {
+  partyName: string
+  partyDate: string
+  rsvpUrl: string
+}): string {
+  return `Hey! Du bist eingeladen zu ${options.partyName} am ${options.partyDate}. Sag uns Bescheid, ob du kommst: ${options.rsvpUrl}`
+}
+
 function splitSummaryLine(line: string): { label: string; value: string } {
   const idx = line.indexOf(':')
   if (idx < 0) return { label: line, value: '' }
@@ -308,6 +316,16 @@ export function BoardView({
     return `${window.location.origin}${window.location.pathname}?rsvp=${encodeURIComponent(token)}&board=${encodeURIComponent(boardId)}`
   }
 
+  function buildRsvpShareTextForBoard() {
+    const partyName = board.partyDetails.forWhom.trim() || board.topic.trim() || 'deiner Party'
+    const partyDate = formatPartyDate(board.partyDetails.date, board.partyDetails.time)
+    return buildRsvpShareText({
+      partyName,
+      partyDate,
+      rsvpUrl: buildRsvpUrl(),
+    })
+  }
+
   function openReminderDialog() {
     const token = ensureRsvpToken()
     const partyName = board.partyDetails.forWhom.trim() || board.topic.trim() || 'deine Party'
@@ -425,6 +443,10 @@ export function BoardView({
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
+  function handleShareRsvpLinkWhatsApp() {
+    handleOpenWhatsApp(buildRsvpShareTextForBoard())
+  }
+
   async function handleGenerateShoppingList() {
     if (loadingShopping) return
     const selectedTiles: ShoppingSourceTile[] = board.tiles
@@ -485,7 +507,7 @@ export function BoardView({
     }
   }
 
-  async function handleGenerateSchedule() {
+  async function handleGenerateScheduleWithWishes(wishes: string) {
     if (loadingSchedule) return
     const selectedTiles: ShoppingSourceTile[] = board.tiles
       .filter((tile) => tile.selected)
@@ -498,7 +520,12 @@ export function BoardView({
     setError(null)
     setLoadingSchedule(true)
     try {
-      const { items, backupItems } = await generatePartySchedule(board.topic, board.partyDetails, selectedTiles)
+      const { items, backupItems } = await generatePartySchedule(
+        board.topic,
+        board.partyDetails,
+        selectedTiles,
+        wishes
+      )
       setBoard((current) => ({
         ...current,
         partySchedule: mergeScheduleSuggestions(current.partySchedule, items),
@@ -802,7 +829,9 @@ export function BoardView({
                 value={board.partyDetails}
                 onChange={updatePartyDetails}
                 onShareRsvpLink={handleShareRsvpLink}
+                onShareRsvpLinkWhatsApp={handleShareRsvpLinkWhatsApp}
                 shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
+                shareWhatsAppLabel="Per WhatsApp teilen"
                 showDetails
                 showGuestList={false}
                 showCalendar
@@ -860,7 +889,9 @@ export function BoardView({
                 value={board.partyDetails}
                 onChange={updatePartyDetails}
                 onShareRsvpLink={handleShareRsvpLink}
+                onShareRsvpLinkWhatsApp={handleShareRsvpLinkWhatsApp}
                 shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
+                shareWhatsAppLabel="Per WhatsApp teilen"
                 showDetails={false}
                 showGuestList
                 showCalendar={false}
@@ -1105,7 +1136,7 @@ export function BoardView({
             generating={loadingSchedule}
             backupOpen={scheduleBackupOpen}
             onToggleBackupOpen={handleToggleScheduleBackupSection}
-            onGenerate={handleGenerateSchedule}
+            onGenerate={handleGenerateScheduleWithWishes}
             onAddItem={handleAddScheduleItem}
             onUpdateItem={handleUpdateScheduleItem}
             onRemoveItem={handleRemoveScheduleItem}

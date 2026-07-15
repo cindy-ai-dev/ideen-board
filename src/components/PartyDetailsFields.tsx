@@ -5,7 +5,9 @@ interface Props {
   value: PartyDetails
   onChange: (next: PartyDetails) => void
   onShareRsvpLink?: () => void
+  onShareRsvpLinkWhatsApp?: () => void
   shareLabel?: string
+  shareWhatsAppLabel?: string
   showDetails?: boolean
   showGuestList?: boolean
   showCalendar?: boolean
@@ -106,7 +108,9 @@ export function PartyDetailsFields({
   value,
   onChange,
   onShareRsvpLink,
+  onShareRsvpLinkWhatsApp,
   shareLabel,
+  shareWhatsAppLabel,
   showDetails = true,
   showGuestList = true,
   showCalendar = true,
@@ -355,6 +359,14 @@ export function PartyDetailsFields({
                   className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-semibold text-orange-700 transition hover:bg-orange-50"
                 >
                   {shareLabel ?? 'Gäste-Link kopieren'}
+                </button>
+              )}
+              {onShareRsvpLinkWhatsApp && (
+                <button
+                  onClick={onShareRsvpLinkWhatsApp}
+                  className="rounded-full border border-green-200 bg-white px-3 py-1 text-xs font-semibold text-green-700 transition hover:bg-green-50"
+                >
+                  {shareWhatsAppLabel ?? 'Per WhatsApp teilen'}
                 </button>
               )}
               {value.guests.length > 0 && (
