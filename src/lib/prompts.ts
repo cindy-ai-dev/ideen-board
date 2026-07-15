@@ -143,6 +143,7 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
     theme: '',
     age: null,
     preferences: '',
+    responseDeadline: '',
     location: '',
     date: '',
     time: '',
@@ -155,6 +156,7 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
   const forWhom = normalizeText(safe.forWhom)
   const theme = normalizeText(safe.theme)
   const preferences = normalizeText(safe.preferences)
+  const responseDeadline = normalizeText(safe.responseDeadline)
   const location = normalizeText(safe.location)
   const date = normalizeText(safe.date)
   const time = normalizeText(safe.time)
@@ -174,10 +176,23 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
     })
     .filter(Boolean)
 
+  const formattedResponseDeadline = responseDeadline
+    ? (() => {
+        const parsed = new Date(`${responseDeadline}T12:00:00`)
+        if (Number.isNaN(parsed.getTime())) return responseDeadline
+        return new Intl.DateTimeFormat('de-DE', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        }).format(parsed)
+      })()
+    : ''
+
   if (theme) lines.push(`Motto: ${theme}`)
   if (forWhom) lines.push(`Für wen / Anlass: ${forWhom}`)
   if (age !== null) lines.push(`Alter: ${age}`)
   if (preferences) lines.push(`Vorlieben / Besonderheiten: ${preferences}`)
+  if (formattedResponseDeadline) lines.push(`Antwort bis: ${formattedResponseDeadline}`)
   if (location) lines.push(`Ort: ${location}`)
   if (date || time) lines.push(`Termin: ${[date, time].filter(Boolean).join(' · ')}`)
   if (confirmedGuestTotal > 0) {

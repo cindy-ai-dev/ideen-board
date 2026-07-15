@@ -18,6 +18,17 @@ function formatPartyDate(date: string, time: string): string {
   return time ? `${datePart}, ${time} Uhr` : datePart
 }
 
+function formatDeadline(date: string): string | null {
+  if (!date) return null
+  const parsed = new Date(`${date}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return date
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed)
+}
+
 function statusLabel(status: 'eingeladen' | 'zugesagt' | 'abgesagt'): string {
   if (status === 'zugesagt') return 'Zugesagt'
   if (status === 'abgesagt') return 'Abgesagt'
@@ -63,6 +74,7 @@ export function BoardPlanView({
       ? `${Math.round(board.partyDetails.age)} Jahre`
       : null
   const preferencesLabel = board.partyDetails.preferences.trim() || null
+  const responseDeadlineLabel = formatDeadline(board.partyDetails.responseDeadline)
   const totalShoppingPrice = board.shoppingList.reduce(
     (sum, item) => sum + (typeof item.priceEuro === 'number' ? item.priceEuro : 0),
     0
@@ -120,6 +132,7 @@ export function BoardPlanView({
           <InfoCard label="Ort" value={board.partyDetails.location || 'Nicht gesetzt'} />
           <InfoCard label="Datum" value={formatPartyDate(board.partyDetails.date, board.partyDetails.time)} />
           <InfoCard label="Uhrzeit" value={board.partyDetails.time || 'Nicht gesetzt'} />
+          {responseDeadlineLabel && <InfoCard label="Antwort bis" value={responseDeadlineLabel} />}
           <InfoCard
             label="Gästezahl"
             value={

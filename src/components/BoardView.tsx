@@ -34,8 +34,30 @@ function isPartyDetailsEmpty(details: PartyDetails): boolean {
     details.date ||
     details.time ||
     details.guestCount !== null ||
-    details.budgetLimitEuro !== null
+    details.budgetLimitEuro !== null ||
+    details.responseDeadline.trim()
   )
+}
+
+function formatResponseDeadline(value: string): string | null {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed)
+}
+
+function isDeadlineExpired(value: string): boolean {
+  if (!value) return false
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  parsed.setHours(0, 0, 0, 0)
+  return parsed < today
 }
 
 function splitSummaryLine(line: string): { label: string; value: string } {
@@ -587,6 +609,11 @@ export function BoardView({
   const hasPartyDetails = !isPartyDetailsEmpty(board.partyDetails)
   const showDetailsEditor = showOverview && (editingDetails || !hasPartyDetails)
   const showSummary = showOverview && hasPartyDetails && !editingDetails
+  const respondedGuests = board.partyDetails.guests.filter(
+    (guest) => guest.status === 'zugesagt' || guest.status === 'abgesagt'
+  ).length
+  const responseDeadlineLabel = formatResponseDeadline(board.partyDetails.responseDeadline)
+  const responseDeadlineExpired = isDeadlineExpired(board.partyDetails.responseDeadline)
 
   useEffect(() => {
     if (!showOverview) setEditingDetails(false)
@@ -676,15 +703,38 @@ export function BoardView({
           )}
 
           {showGuests && (
-            <PartyDetailsFields
-              value={board.partyDetails}
-              onChange={updatePartyDetails}
-              onShareRsvpLink={handleShareRsvpLink}
-              shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
-              showDetails={false}
-              showGuestList
-              showCalendar={false}
-            />
+            <div className="space-y-4">
+              <div className="rounded-[1.4rem] border border-orange-100 bg-orange-50/70 px-4 py-3 shadow-sm">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-semibold text-stone-700">
+                    {respondedGuests} von {board.partyDetails.guests.length} Gästen haben geantwortet
+                  </p>
+                  {board.partyDetails.responseDeadline && (
+                    <p
+                      className={`text-sm font-medium ${
+                        responseDeadlineExpired ? 'text-rose-600' : 'text-amber-700'
+                      }`}
+                    >
+                      {responseDeadlineExpired
+                        ? 'Frist abgelaufen'
+                        : responseDeadlineLabel
+                          ? `Antwort bis: ${responseDeadlineLabel}`
+                          : 'Antwort bis gesetzt'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <PartyDetailsFields
+                value={board.partyDetails}
+                onChange={updatePartyDetails}
+                onShareRsvpLink={handleShareRsvpLink}
+                shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
+                showDetails={false}
+                showGuestList
+                showCalendar={false}
+              />
+            </div>
           )}
 
           <div className="mt-5 flex flex-wrap justify-end gap-2 print:hidden">

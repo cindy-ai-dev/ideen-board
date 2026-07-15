@@ -14,6 +14,118 @@ function formatPartyDate(date: string, time: string): string {
   return time ? `${datePart}, ${time} Uhr` : datePart
 }
 
+function escapeCalendarText(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/,/g, '\\,')
+    .replace(/;/g, '\\;')
+}
+
+function toIcsDateTime(date: string, time: string): string | null {
+  if (!date || !time) return null
+  const local = new Date(`${date}T${time}`)
+  if (Number.isNaN(local.getTime())) return null
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return (
+    `${local.getFullYear()}${pad(local.getMonth() + 1)}${pad(local.getDate())}` +
+    `T${pad(local.getHours())}${pad(local.getMinutes())}${pad(local.getSeconds())}`
+  )
+}
+
+function buildCalendarDetails(details: NonNullable<PublicRsvpBoard['partyDetails']>): {
+  title: string
+  location: string
+  description: string
+  start: string | null
+  end: string | null
+} {
+  const start = toIcsDateTime(details.date, details.time)
+  if (!start) {
+    return {
+      title: details.forWhom.trim() || details.theme.trim() || 'Party',
+      location: details.location.trim(),
+      description: '',
+      start: null,
+      end: null,
+    }
+  }
+
+  const startDate = new Date(`${details.date}T${details.time}`)
+  const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const end =
+    `${endDate.getFullYear()}${pad(endDate.getMonth() + 1)}${pad(endDate.getDate())}` +
+    `T${pad(endDate.getHours())}${pad(endDate.getMinutes())}${pad(endDate.getSeconds())}`
+
+  const description = [
+    details.theme.trim() ? `Motto: ${details.theme.trim()}` : '',
+    details.location.trim() ? `Ort: ${details.location.trim()}` : '',
+    `Zeit: ${formatPartyDate(details.date, details.time)}`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  return {
+    title: details.forWhom.trim() || details.theme.trim() || 'Party',
+    location: details.location.trim(),
+    description,
+    start,
+    end,
+  }
+}
+
+function downloadIcs(details: NonNullable<PublicRsvpBoard['partyDetails']>) {
+  const calendar = buildCalendarDetails(details)
+  if (!calendar.start || !calendar.end) return
+  const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+  const content = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//PartyHost//Party Planner//DE',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${crypto.randomUUID()}`,
+    `DTSTAMP:${dtStamp}`,
+    `SUMMARY:${escapeCalendarText(calendar.title)}`,
+    calendar.location ? `LOCATION:${escapeCalendarText(calendar.location)}` : null,
+    calendar.description ? `DESCRIPTION:${escapeCalendarText(calendar.description)}` : null,
+    `DTSTART:${calendar.start}`,
+    `DTEND:${calendar.end}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ]
+    .filter((line): line is string => line !== null)
+    .join('\r\n')
+
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const fileName = `${(calendar.title || 'party')
+    .toLowerCase()
+    .replace(/[^a-z0-9äöüß]+/gi, '-')}-einladung.ics`
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName.replace(/-+/g, '-').replace(/^-|-$/g, '') || 'party-einladung.ics'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+function openGoogleCalendar(details: NonNullable<PublicRsvpBoard['partyDetails']>) {
+  const calendar = buildCalendarDetails(details)
+  if (!calendar.start || !calendar.end) return
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: calendar.title,
+    dates: `${calendar.start}/${calendar.end}`,
+    details: calendar.description,
+    location: calendar.location,
+  })
+  window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank', 'noopener,noreferrer')
+}
+
 export function GuestRsvpView({ token, boardId }: { token: string; boardId?: string }) {
   const [board, setBoard] = useState<PublicRsvpBoard | null>(null)
   const [name, setName] = useState('')
@@ -75,6 +187,7 @@ export function GuestRsvpView({ token, boardId }: { token: string; boardId?: str
   }
 
   const details = board?.partyDetails
+  const canAddCalendar = Boolean(details?.date && details.time && status === 'zugesagt' && success)
 
   return (
     <div className="min-h-screen px-4 py-8 sm:px-6 sm:py-10">
@@ -163,6 +276,28 @@ export function GuestRsvpView({ token, boardId }: { token: string; boardId?: str
                 <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
                   {success} Der Status wurde im Haupt-Board gespeichert.
                 </p>
+              )}
+              {canAddCalendar && details && (
+                <div className="rounded-[1.4rem] border border-amber-100 bg-amber-50/70 p-4">
+                  <p className="text-sm font-semibold text-stone-700">Zum Kalender hinzufügen</p>
+                  <p className="mt-1 text-sm leading-relaxed text-stone-500">
+                    Die Einladung kannst du jetzt direkt in deinen Kalender übernehmen.
+                  </p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      onClick={() => openGoogleCalendar(details)}
+                      className="rounded-2xl bg-amber-500 px-4 py-3 font-semibold text-white shadow-sm shadow-amber-200 transition hover:bg-amber-600"
+                    >
+                      Zu Google Kalender hinzufügen
+                    </button>
+                    <button
+                      onClick={() => downloadIcs(details)}
+                      className="rounded-2xl border border-amber-200 bg-white px-4 py-3 font-semibold text-amber-700 shadow-sm transition hover:bg-amber-50"
+                    >
+                      Zu Apple/Outlook Kalender hinzufügen
+                    </button>
+                  </div>
+                </div>
               )}
               {status && !success && name.trim() && (
                 <p className="text-xs font-medium text-stone-500">

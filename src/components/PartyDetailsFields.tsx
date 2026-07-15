@@ -288,6 +288,16 @@ export function PartyDetailsFields({
             />
             <span className="text-xs text-stone-400">Optional, in Euro.</span>
           </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-semibold text-stone-600">Antwort bis</span>
+            <input
+              type="date"
+              value={value.responseDeadline}
+              onChange={(e) => updateField('responseDeadline', e.target.value)}
+              className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
+            />
+            <span className="text-xs text-stone-400">Optional, wann Gäste spätestens antworten sollen.</span>
+          </label>
           <label className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
             <span className="text-sm font-semibold text-stone-600">Vorlieben / Besonderheiten</span>
             <textarea

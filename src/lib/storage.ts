@@ -91,6 +91,7 @@ function normalizePartyDetails(value: unknown): PartyDetails {
     theme: typeof value.theme === 'string' ? value.theme : '',
     age,
     preferences: typeof value.preferences === 'string' ? value.preferences : '',
+    responseDeadline: typeof value.responseDeadline === 'string' ? value.responseDeadline : '',
     location: typeof value.location === 'string' ? value.location : '',
     date: typeof value.date === 'string' ? value.date : '',
     time: typeof value.time === 'string' ? value.time : '',

@@ -28,6 +28,7 @@ export interface PartyDetails {
   theme: string
   age: number | null
   preferences: string
+  responseDeadline: string
   location: string
   date: string
   time: string
@@ -96,6 +97,7 @@ export function createEmptyPartyDetails(): PartyDetails {
     theme: '',
     age: null,
     preferences: '',
+    responseDeadline: '',
     location: '',
     date: '',
     time: '',

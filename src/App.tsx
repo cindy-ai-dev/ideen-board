@@ -16,6 +16,7 @@ function trimPartyDetails(details: PartyDetails): PartyDetails {
       ? Math.round(details.age)
       : null,
     preferences: details.preferences.trim(),
+    responseDeadline: details.responseDeadline.trim(),
     location: details.location.trim(),
     date: details.date,
     time: details.time,
