@@ -31,7 +31,7 @@ unter einer echten Adresse erreichbar – auch vom Handy.
 5. **API-Key hinterlegen** (der Server braucht ihn, Besucher sehen ihn nie):
 
    ```
-   npx vercel env add ANTHROPIC_API_KEY
+   npx vercel env add OPENAI_API_KEY
    ```
 
    → Key einfügen (derselbe wie in .env.local), bei der Frage nach

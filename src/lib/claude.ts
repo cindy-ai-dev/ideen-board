@@ -10,7 +10,7 @@ import {
 
 // Zwei Wege zum selben Ziel:
 //
-// LOKAL (npm run dev): Der Browser ruft die Claude API direkt auf,
+// LOKAL (npm run dev): Der Browser ruft die OpenAI API direkt auf,
 //   mit dem Key aus .env.local. Okay, weil nur du die Seite siehst.
 //
 // VERÖFFENTLICHT: Der Browser ruft UNSERE Server-Funktionen unter
@@ -19,30 +19,34 @@ import {
 //
 // import.meta.env.DEV ist Vites eingebauter Schalter dafür.
 
-async function callClaudeDirect(system: string, userMessage: string): Promise<RawIdea[]> {
+async function callOpenAIDirect(system: string, userMessage: string): Promise<RawIdea[]> {
   // SDK nur im Dev-Modus laden – so landet es gar nicht erst im
   // veröffentlichten Bundle (kleiner + kein Key-Code beim Besucher).
-  const { default: Anthropic } = await import('@anthropic-ai/sdk')
-  const client = new Anthropic({
-    apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
+  const { default: OpenAI } = await import('openai')
+  const client = new OpenAI({
+    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
     dangerouslyAllowBrowser: true,
   })
 
-  const response = await client.messages.create({
+  const response = await client.responses.create({
     model: MODEL,
-    max_tokens: 16000,
-    system,
-    messages: [{ role: 'user', content: userMessage }],
-    output_config: {
-      format: { type: 'json_schema', schema: IDEAS_SCHEMA },
+    max_output_tokens: 2000,
+    instructions: system,
+    input: userMessage,
+    text: {
+      format: {
+        type: 'json_schema',
+        name: 'ideas',
+        strict: true,
+        schema: IDEAS_SCHEMA,
+      },
     },
   })
 
-  const textBlock = response.content.find((b) => b.type === 'text')
-  if (!textBlock || textBlock.type !== 'text') {
+  if (!response.output_text) {
     throw new Error('Keine Antwort von der API erhalten')
   }
-  return (JSON.parse(textBlock.text) as { ideas: RawIdea[] }).ideas
+  return (JSON.parse(response.output_text) as { ideas: RawIdea[] }).ideas
 }
 
 async function callProxy(endpoint: string, body: object): Promise<RawIdea[]> {
@@ -72,7 +76,7 @@ function toTiles(ideas: RawIdea[], boardId: string, forceCategory?: string): Til
 
 export async function generateIdeas(topic: string, boardId: string): Promise<Tile[]> {
   const ideas = import.meta.env.DEV
-    ? await callClaudeDirect(SYSTEM_START, `Thema: ${topic}`)
+    ? await callOpenAIDirect(SYSTEM_START, `Thema: ${topic}`)
     : await callProxy('/api/ideas', { topic })
   return toTiles(ideas, boardId)
 }
@@ -84,7 +88,7 @@ export async function generateMoreIdeas(
   boardId: string
 ): Promise<Tile[]> {
   const ideas = import.meta.env.DEV
-    ? await callClaudeDirect(SYSTEM_MORE, buildMoreUserMessage(topic, category, existingTitles))
+    ? await callOpenAIDirect(SYSTEM_MORE, buildMoreUserMessage(topic, category, existingTitles))
     : await callProxy('/api/more-ideas', { topic, category, existingTitles })
   return toTiles(ideas, boardId, category)
 }

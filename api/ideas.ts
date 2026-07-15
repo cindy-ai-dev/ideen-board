@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { SYSTEM_START } from '../src/lib/prompts.js'
-import { askClaude } from './_claude.js'
+import { askOpenAI } from './_openai.js'
 
 // POST /api/ideas  { topic: string }  →  { ideas: RawIdea[] }
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
   try {
-    const ideas = await askClaude(SYSTEM_START, `Thema: ${topic}`)
+    const ideas = await askOpenAI(SYSTEM_START, `Thema: ${topic}`)
     res.status(200).json({ ideas })
   } catch {
     res.status(502).json({ error: 'Ideen konnten nicht geladen werden' })

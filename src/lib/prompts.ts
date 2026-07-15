@@ -1,4 +1,4 @@
-// Gemeinsame Bausteine für die Claude-Anfragen. Dieses Modul wird von
+// Gemeinsame Bausteine für die OpenAI-Anfragen. Dieses Modul wird von
 // ZWEI Seiten benutzt: vom Browser (lokale Entwicklung) und von den
 // Server-Funktionen unter /api (veröffentlichte Version). So bleiben
 // Prompts und Schema garantiert identisch.
@@ -24,7 +24,7 @@ export const IDEAS_SCHEMA = {
   additionalProperties: false,
 } as const
 
-export const MODEL = 'claude-opus-4-8'
+export const MODEL = 'gpt-5.6'
 
 export const SYSTEM_START =
   'Du bist ein kreativer Planungs-Assistent. Der User sammelt Ideen zu einem Projekt ' +
