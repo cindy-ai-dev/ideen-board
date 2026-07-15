@@ -2,7 +2,20 @@ import { useMemo, useState } from 'react'
 import type { PartyDetails } from '../types'
 import type { ShoppingListItem } from '../types'
 
-const DEFAULT_SECTIONS = ['Deko', 'Essen', 'Getränke', 'Geschirr', 'Sonstiges']
+const DEFAULT_SECTIONS = [
+  'Deko',
+  'Essen',
+  'Getränke',
+  'Geschirr',
+  'Backen',
+  'Mitgebsel',
+  'Spiele',
+  'Unterhaltung',
+  'Einladung',
+  'Zeitplan',
+  'Einkauf',
+  'Sonstiges',
+]
 
 function normalizeSection(section: string): string {
   return section.trim() || 'Sonstiges'
@@ -133,13 +146,17 @@ export function ShoppingListSection({
               placeholder="Eigenen Artikel hinzufügen"
               className="flex-1 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
             />
-            <input
+            <select
               value={section}
               onChange={(e) => setSection(e.target.value)}
-              list="shopping-sections"
-              placeholder="Bereich"
               className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100 lg:max-w-52"
-            />
+            >
+              {DEFAULT_SECTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
             <input
               value={price}
               onChange={(e) => setPrice(e.target.value)}
@@ -147,11 +164,6 @@ export function ShoppingListSection({
               placeholder="Preis € optional"
               className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
             />
-            <datalist id="shopping-sections">
-              {DEFAULT_SECTIONS.map((value) => (
-                <option key={value} value={value} />
-              ))}
-            </datalist>
             <button
               onClick={handleAdd}
               disabled={!label.trim()}
