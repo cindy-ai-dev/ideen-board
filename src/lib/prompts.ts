@@ -24,7 +24,10 @@ export const IDEAS_SCHEMA = {
   additionalProperties: false,
 } as const
 
-export const MODEL = 'gpt-5.6'
+// Luna ist die kostengünstigste GPT-5.6-Variante und für das Ideen-Board
+// während der Entwicklung ausreichend. Für die finale Abgabe kann dieser
+// Wert bei Bedarf wieder auf ein stärkeres Modell wechseln.
+export const MODEL = 'gpt-5.6-luna'
 
 export const SYSTEM_START =
   'Du bist ein kreativer Planungs-Assistent. Der User sammelt Ideen zu einem Projekt ' +

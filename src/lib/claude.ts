@@ -30,7 +30,7 @@ async function callOpenAIDirect(system: string, userMessage: string): Promise<Ra
 
   const response = await client.responses.create({
     model: MODEL,
-    max_output_tokens: 2000,
+    max_output_tokens: 1200,
     instructions: system,
     input: userMessage,
     text: {

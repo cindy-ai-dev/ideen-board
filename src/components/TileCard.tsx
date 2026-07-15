@@ -66,17 +66,29 @@ export function TileCard({
           <p className="text-sm text-stone-600 leading-relaxed">{tile.description}</p>
         )}
       </div>
-      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-2 right-2 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
         <button
-          onClick={() => onEdit(tile)}
+          // Die Kachel selbst ist draggable. Interaktionen mit den
+          // Aktionsknöpfen dürfen deshalb keinen Drag-Vorgang starten.
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit(tile)
+          }}
           title="Kachel bearbeiten"
+          aria-label="Kachel bearbeiten"
           className="w-7 h-7 rounded-full bg-white/80 text-stone-500 hover:bg-white hover:text-stone-800 text-sm leading-none"
         >
           ✎
         </button>
         <button
-          onClick={() => onDelete(tile.id)}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(tile.id)
+          }}
           title="Kachel entfernen"
+          aria-label="Kachel entfernen"
           className="w-7 h-7 rounded-full bg-white/80 text-stone-500 hover:bg-white hover:text-stone-800 text-sm leading-none"
         >
           ✕
