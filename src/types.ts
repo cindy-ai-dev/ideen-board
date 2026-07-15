@@ -45,6 +45,11 @@ export interface BoardMeta {
   createdAt: number
 }
 
+export interface BoardRecord extends BoardMeta {
+  data: BoardState
+  updatedAt: number
+}
+
 export function createEmptyPartyDetails(): PartyDetails {
   return {
     forWhom: '',

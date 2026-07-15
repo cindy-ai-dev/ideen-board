@@ -48,7 +48,7 @@ export default function App() {
   const [dialog, setDialog] = useState<'new' | 'rename' | null>(null)
   const [newBoardDetails, setNewBoardDetails] = useState<PartyDetails>(createEmptyPartyDetails())
 
-  const active = boards.find((b) => b.id === activeId) ?? boards[0]
+  const active = boards.find((b) => b.id === activeId) ?? boards[0] ?? null
   const boardSummaries = useMemo(() => {
     return boards
       .map((board) => ({
@@ -65,6 +65,7 @@ export default function App() {
   }, [boards])
 
   function handleDeleteBoard() {
+    if (!active) return
     const ok = window.confirm(
       `Board "${active.name}" wirklich löschen? Alle Kacheln darauf gehen verloren.`
     )
@@ -101,35 +102,41 @@ export default function App() {
           </span>
         </div>
 
-        <div className="space-y-2">
-          {boardSummaries.map(({ meta, details }) => {
-            const isActive = meta.id === activeId
-            return (
-              <button
-                key={meta.id}
-                onClick={() => setActiveId(meta.id)}
-                className={`flex w-full flex-col gap-2 rounded-[1.4rem] border px-4 py-3 text-left transition sm:flex-row sm:items-center sm:justify-between ${
-                  isActive
-                    ? 'border-orange-200 bg-orange-50/80 shadow-sm'
-                    : 'border-orange-100 bg-white/80 hover:border-orange-200 hover:bg-orange-50/60'
-                }`}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-base font-bold text-stone-800">
-                    {details.forWhom || meta.name}
-                  </p>
-                  <p className="mt-1 text-sm text-stone-500">
-                    {details.theme ? `Motto: ${details.theme}` : 'Kein Motto gesetzt'}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-1 text-sm text-stone-500 sm:text-right">
-                  <span className="font-medium text-stone-700">{formatPartyDate(details)}</span>
-                  <span>{details.location || 'Ort offen'}</span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+        {boardSummaries.length === 0 ? (
+          <div className="rounded-[1.4rem] border border-dashed border-orange-200 bg-white/70 px-4 py-10 text-center text-stone-400">
+            Noch keine Boards geladen.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {boardSummaries.map(({ meta, details }) => {
+              const isActive = meta.id === activeId
+              return (
+                <button
+                  key={meta.id}
+                  onClick={() => setActiveId(meta.id)}
+                  className={`flex w-full flex-col gap-2 rounded-[1.4rem] border px-4 py-3 text-left transition sm:flex-row sm:items-center sm:justify-between ${
+                    isActive
+                      ? 'border-orange-200 bg-orange-50/80 shadow-sm'
+                      : 'border-orange-100 bg-white/80 hover:border-orange-200 hover:bg-orange-50/60'
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-bold text-stone-800">
+                      {details.forWhom || meta.name}
+                    </p>
+                    <p className="mt-1 text-sm text-stone-500">
+                      {details.theme ? `Motto: ${details.theme}` : 'Kein Motto gesetzt'}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1 text-sm text-stone-500 sm:text-right">
+                    <span className="font-medium text-stone-700">{formatPartyDate(details)}</span>
+                    <span>{details.location || 'Ort offen'}</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </section>
 
       {/* Board-Leiste: ein Pill pro Board + Verwaltung */}
@@ -173,7 +180,13 @@ export default function App() {
 
       {/* key={activeId}: beim Board-Wechsel wird die Ansicht komplett neu
           aufgebaut und lädt sauber den Stand des gewählten Boards */}
-      <BoardView key={activeId} boardId={activeId} />
+      {active ? (
+        <BoardView key={activeId} boardId={activeId} />
+      ) : (
+        <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
+          Lade Boards…
+        </div>
+      )}
 
       {dialog === 'new' && (
         <div
@@ -226,9 +239,9 @@ export default function App() {
       {dialog === 'rename' && (
         <NameDialog
           title="Board umbenennen"
-          initial={active.name}
+          initial={active?.name ?? ''}
           onSave={(name) => {
-            renameBoard(active.id, name)
+            if (active) renameBoard(active.id, name)
             setDialog(null)
           }}
           onClose={() => setDialog(null)}

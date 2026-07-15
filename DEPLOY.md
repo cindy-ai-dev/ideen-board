@@ -37,7 +37,16 @@ unter einer echten Adresse erreichbar – auch vom Handy.
    → Key einfügen (derselbe wie in .env.local), bei der Frage nach
    Environments **Production** auswählen (Leertaste, dann Enter).
 
-6. **Live schalten:**
+6. **Datenbank-Verbindung hinterlegen**:
+
+   ```
+   npx vercel env add DATABASE_URL
+   ```
+
+   → Die Neon-Postgres-Connection-String aus `.env.local` einfügen und
+   ebenfalls **Production** auswählen.
+
+7. **Live schalten:**
 
    ```
    npx vercel --prod
@@ -56,8 +65,8 @@ cd ~/Documents/ideen-board && npx vercel --prod
 
 ## Wichtig zu wissen
 
-- **Boards sind pro Gerät.** Mac und Handy haben getrennte Speicher –
-  was du am Handy sammelst, ist nicht automatisch am Mac (und umgekehrt).
+- **Boards werden in Neon/Postgres gespeichert.** Was du am Handy sammelst,
+  ist nach dem Öffnen derselben Board-URL auch am Mac sichtbar.
 - **.env.local bleibt privat.** Sie wird nie hochgeladen (.vercelignore)
   und ist nur für die lokale Entwicklung (npm run dev).
 - Lokal entwickeln geht weiter wie immer mit `npm run dev`.
