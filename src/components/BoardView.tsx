@@ -1,17 +1,18 @@
-import { useMemo, useState } from 'react'
-import type { Tile } from '../types'
+import { useMemo, useState, type DragEvent } from 'react'
+import type { PartyDetails, Tile } from '../types'
 import { useBoard } from '../lib/storage'
 import { generateIdeas, generateMoreIdeas } from '../lib/claude'
 import { fetchLinkPreview } from '../lib/og'
+import { summarizePartyDetails } from '../lib/prompts'
 import { TileCard, categoryColor } from './TileCard'
 import { TileEditor } from './TileEditor'
+import { PartyDetailsFields } from './PartyDetailsFields'
 
 // Die komplette Ansicht EINES Boards. Wird in App per key={boardId}
 // eingebunden – beim Board-Wechsel baut React die Komponente neu auf
 // und useBoard lädt sauber den Stand des neuen Boards.
 export function BoardView({ boardId }: { boardId: string }) {
   const [board, setBoard] = useBoard(boardId)
-  const [topicInput, setTopicInput] = useState('')
   const [urlInput, setUrlInput] = useState('')
   const [loadingIdeas, setLoadingIdeas] = useState(false)
   const [loadingLink, setLoadingLink] = useState(false)
@@ -34,15 +35,25 @@ export function BoardView({ boardId }: { boardId: string }) {
     return map
   }, [board.tiles])
 
+  function updatePartyDetails(next: PartyDetails) {
+    setBoard((current) => ({
+      ...current,
+      topic: next.forWhom.trim() || current.topic,
+      partyDetails: next,
+    }))
+  }
+
   async function handleGenerate() {
-    const topic = topicInput.trim()
-    if (!topic || loadingIdeas) return
+    if (loadingIdeas) return
     setError(null)
     setLoadingIdeas(true)
     try {
-      const ideas = await generateIdeas(topic, boardId)
-      setBoard((b) => ({ topic, tiles: [...b.tiles, ...ideas] }))
-      setTopicInput('')
+      const ideas = await generateIdeas(board.topic, board.partyDetails, boardId)
+      setBoard((current) => ({
+        ...current,
+        topic: current.topic || current.partyDetails.forWhom.trim(),
+        tiles: [...current.tiles, ...ideas],
+      }))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ideen konnten nicht geladen werden')
     } finally {
@@ -58,8 +69,11 @@ export function BoardView({ boardId }: { boardId: string }) {
       const existing = board.tiles
         .filter((t) => t.category === category)
         .map((t) => t.title)
-      const ideas = await generateMoreIdeas(board.topic, category, existing, boardId)
-      setBoard((b) => ({ ...b, tiles: [...b.tiles, ...ideas] }))
+      const ideas = await generateMoreIdeas(board.topic, board.partyDetails, category, existing, boardId)
+      setBoard((current) => ({
+        ...current,
+        tiles: [...current.tiles, ...ideas],
+      }))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ideen konnten nicht geladen werden')
     } finally {
@@ -75,7 +89,7 @@ export function BoardView({ boardId }: { boardId: string }) {
     setLoadingLink(true)
     try {
       const tile = await fetchLinkPreview(url, boardId)
-      setBoard((b) => ({ ...b, tiles: [...b.tiles, tile] }))
+      setBoard((current) => ({ ...current, tiles: [...current.tiles, tile] }))
       setUrlInput('')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Link konnte nicht geladen werden')
@@ -85,19 +99,19 @@ export function BoardView({ boardId }: { boardId: string }) {
   }
 
   function handleDelete(id: string) {
-    setBoard((b) => ({ ...b, tiles: b.tiles.filter((t) => t.id !== id) }))
+    setBoard((current) => ({ ...current, tiles: current.tiles.filter((t) => t.id !== id) }))
   }
 
   // Beim Drop: Kachel-ID aus dem dataTransfer holen und die Kategorie
   // der Kachel umschreiben – mehr ist Verschieben nicht.
-  function handleDrop(category: string, e: React.DragEvent) {
+  function handleDrop(category: string, e: DragEvent) {
     e.preventDefault()
     setDragOver(null)
     const tileId = e.dataTransfer.getData('text/plain')
     if (!tileId) return
-    setBoard((b) => ({
-      ...b,
-      tiles: b.tiles.map((t) => (t.id === tileId ? { ...t, category } : t)),
+    setBoard((current) => ({
+      ...current,
+      tiles: current.tiles.map((t) => (t.id === tileId ? { ...t, category } : t)),
     }))
   }
 
@@ -118,11 +132,11 @@ export function BoardView({ boardId }: { boardId: string }) {
         image: values.image || undefined,
         createdAt: Date.now(),
       }
-      setBoard((b) => ({ ...b, tiles: [...b.tiles, tile] }))
+      setBoard((current) => ({ ...current, tiles: [...current.tiles, tile] }))
     } else if (editor) {
-      setBoard((b) => ({
-        ...b,
-        tiles: b.tiles.map((t) =>
+      setBoard((current) => ({
+        ...current,
+        tiles: current.tiles.map((t) =>
           t.id === editor.id
             ? {
                 ...t,
@@ -138,24 +152,41 @@ export function BoardView({ boardId }: { boardId: string }) {
     setEditor(null)
   }
 
+  const partySummary = summarizePartyDetails(board.partyDetails)
+
   return (
     <>
-      {/* Eingabezeile: Thema + Link + eigene Idee */}
+      <section className="mb-8 rounded-[1.85rem] border border-white bg-white/80 p-5 shadow-[0_12px_35px_rgba(119,75,43,0.08)] backdrop-blur sm:p-6">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">
+              Party-Details
+            </p>
+            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800 sm:text-3xl">
+              {board.partyDetails.forWhom || 'Noch kein Anlass eingetragen'}
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500">
+              Diese Angaben werden in localStorage gespeichert und als Kontext für die KI genutzt.
+            </p>
+          </div>
+          {partySummary && (
+            <div className="max-w-sm rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-3 text-sm leading-relaxed text-stone-600">
+              {partySummary}
+            </div>
+          )}
+        </div>
+
+        <PartyDetailsFields value={board.partyDetails} onChange={updatePartyDetails} />
+      </section>
+
       <div className="mb-12 flex flex-col gap-3 rounded-[1.75rem] border border-white bg-white/80 p-4 shadow-[0_12px_35px_rgba(119,75,43,0.08)] sm:p-5 lg:flex-row">
         <div className="flex flex-1 gap-2">
-          <input
-            value={topicInput}
-            onChange={(e) => setTopicInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-            placeholder='Thema, z.B. "Pokémon-Geburtstag, 6 Jahre"'
-            className="flex-1 rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 placeholder-stone-400 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
-          />
           <button
             onClick={handleGenerate}
-            disabled={loadingIdeas || !topicInput.trim()}
+            disabled={loadingIdeas}
             className="whitespace-nowrap rounded-2xl bg-orange-500 px-5 py-3 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 hover:shadow-md disabled:opacity-40"
           >
-            {loadingIdeas ? 'Denkt nach…' : '✨ Ideen holen'}
+            {loadingIdeas ? 'Denkt nach…' : '✨ Ideen für diese Party holen'}
           </button>
         </div>
         <div className="flex flex-1 gap-2">
@@ -191,7 +222,9 @@ export function BoardView({ boardId }: { boardId: string }) {
       {board.tiles.length === 0 && !loadingIdeas && (
         <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
           <p className="mb-4 text-5xl">🎈</p>
-          <p className="mx-auto max-w-md leading-relaxed">Noch leer hier. Gib oben ein Thema ein und lass dir ein Ideen-Startset geben.</p>
+          <p className="mx-auto max-w-md leading-relaxed">
+            Noch leer hier. Trag oben die Party-Details ein und hol dir dann ein Ideen-Startset.
+          </p>
         </div>
       )}
 

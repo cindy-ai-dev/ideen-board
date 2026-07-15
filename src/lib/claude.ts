@@ -1,9 +1,10 @@
-import type { Tile } from '../types'
+import type { PartyDetails, Tile } from '../types'
 import {
   IDEAS_SCHEMA,
   MODEL,
   SYSTEM_START,
   SYSTEM_MORE,
+  buildStartUserMessage,
   buildMoreUserMessage,
   type RawIdea,
 } from './prompts'
@@ -74,21 +75,29 @@ function toTiles(ideas: RawIdea[], boardId: string, forceCategory?: string): Til
   }))
 }
 
-export async function generateIdeas(topic: string, boardId: string): Promise<Tile[]> {
+export async function generateIdeas(
+  topic: string,
+  partyDetails: PartyDetails,
+  boardId: string
+): Promise<Tile[]> {
   const ideas = import.meta.env.DEV
-    ? await callOpenAIDirect(SYSTEM_START, `Thema: ${topic}`)
-    : await callProxy('/api/ideas', { topic })
+    ? await callOpenAIDirect(SYSTEM_START, buildStartUserMessage(topic, partyDetails))
+    : await callProxy('/api/ideas', { topic, partyDetails })
   return toTiles(ideas, boardId)
 }
 
 export async function generateMoreIdeas(
   topic: string,
+  partyDetails: PartyDetails,
   category: string,
   existingTitles: string[],
   boardId: string
 ): Promise<Tile[]> {
   const ideas = import.meta.env.DEV
-    ? await callOpenAIDirect(SYSTEM_MORE, buildMoreUserMessage(topic, category, existingTitles))
-    : await callProxy('/api/more-ideas', { topic, category, existingTitles })
+    ? await callOpenAIDirect(
+        SYSTEM_MORE,
+        buildMoreUserMessage(topic, partyDetails, category, existingTitles)
+      )
+    : await callProxy('/api/more-ideas', { topic, partyDetails, category, existingTitles })
   return toTiles(ideas, boardId, category)
 }

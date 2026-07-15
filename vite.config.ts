@@ -10,6 +10,7 @@ export default defineConfig({
   // leer, obwohl die Daten weiterhin unter localhost:5173 gespeichert sind.
   // Mit festem Port wird dieser gefährliche Wechsel sichtbar verhindert.
   server: {
+    host: '127.0.0.1',
     port: 5173,
     strictPort: true,
   },

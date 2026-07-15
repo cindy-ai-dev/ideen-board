@@ -12,8 +12,27 @@ export interface Tile {
   createdAt: number
 }
 
+export type GuestStatus = 'eingeladen' | 'zugesagt' | 'abgesagt'
+
+export interface Guest {
+  id: string
+  name: string
+  status: GuestStatus
+}
+
+export interface PartyDetails {
+  forWhom: string
+  theme: string
+  location: string
+  date: string
+  time: string
+  guestCount: number | null
+  guests: Guest[]
+}
+
 export interface BoardState {
   topic: string
+  partyDetails: PartyDetails
   tiles: Tile[]
 }
 
@@ -25,4 +44,24 @@ export interface BoardMeta {
   createdAt: number
 }
 
-export const EMPTY_BOARD: BoardState = { topic: '', tiles: [] }
+export function createEmptyPartyDetails(): PartyDetails {
+  return {
+    forWhom: '',
+    theme: '',
+    location: '',
+    date: '',
+    time: '',
+    guestCount: null,
+    guests: [],
+  }
+}
+
+export function createEmptyBoard(): BoardState {
+  return {
+    topic: '',
+    partyDetails: createEmptyPartyDetails(),
+    tiles: [],
+  }
+}
+
+export const EMPTY_BOARD: BoardState = createEmptyBoard()
