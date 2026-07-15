@@ -12,6 +12,10 @@ function trimPartyDetails(details: PartyDetails): PartyDetails {
     ...details,
     forWhom: details.forWhom.trim(),
     theme: details.theme.trim(),
+    age: typeof details.age === 'number' && Number.isFinite(details.age) && details.age > 0
+      ? Math.round(details.age)
+      : null,
+    preferences: details.preferences.trim(),
     location: details.location.trim(),
     date: details.date,
     time: details.time,
@@ -55,10 +59,11 @@ const VIEW_LABELS: Record<WorkspaceView, string> = {
   ideas: 'Ideen',
   shopping: 'Einkaufsliste',
   timeline: 'Zeitstrahl',
+  schedule: 'Ablaufplan',
   plan: 'Gesamtplan',
 }
 
-const VIEW_ORDER: WorkspaceView[] = ['overview', 'guests', 'ideas', 'shopping', 'timeline', 'plan']
+const VIEW_ORDER: WorkspaceView[] = ['overview', 'guests', 'ideas', 'shopping', 'timeline', 'schedule', 'plan']
 
 function isWorkspaceView(value: string | null): value is WorkspaceView {
   return (
@@ -67,6 +72,7 @@ function isWorkspaceView(value: string | null): value is WorkspaceView {
     value === 'ideas' ||
     value === 'shopping' ||
     value === 'timeline' ||
+    value === 'schedule' ||
     value === 'plan'
   )
 }
@@ -97,7 +103,7 @@ function BoardAreaNav({
     <>
       <div className="hidden lg:block">
         <div className="mb-6 rounded-[1.5rem] border border-orange-100 bg-white/75 p-2 shadow-sm backdrop-blur">
-          <div className="grid grid-cols-6 gap-2">
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
             {VIEW_ORDER.map((item) => (
               <button
                 key={item}
@@ -116,7 +122,7 @@ function BoardAreaNav({
       </div>
       <div className="lg:hidden">
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-orange-100 bg-white/95 px-3 py-2 shadow-[0_-10px_30px_rgba(119,75,43,0.12)] backdrop-blur">
-          <div className="mx-auto grid max-w-7xl grid-cols-3 gap-2 sm:grid-cols-6">
+          <div className="mx-auto grid max-w-7xl grid-cols-4 gap-2 sm:grid-cols-7">
             {VIEW_ORDER.map((item) => (
               <button
                 key={item}
@@ -365,6 +371,7 @@ function HostApp() {
                     tiles: [],
                     shoppingList: [],
                     planningTasks: [],
+                    partySchedule: [],
                     rsvpToken: '',
                   })
                   setDialog(null)

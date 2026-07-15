@@ -8,19 +8,24 @@ import {
   SYSTEM_SHOPPING,
   TASKS_SCHEMA,
   SYSTEM_TASKS,
+  SCHEDULE_SCHEMA,
+  SYSTEM_SCHEDULE,
   buildStartUserMessage,
   buildMoreUserMessage,
   buildShoppingUserMessage,
   buildShoppingUserMessageCompact,
   buildTasksUserMessage,
   buildTasksUserMessageCompact,
+  buildScheduleUserMessage,
+  buildScheduleUserMessageCompact,
   type RawIdea,
+  type RawPartyScheduleItem,
   type RawPlanningTask,
   type RawShoppingItem,
   type ShoppingSourceTile,
 } from './prompts'
 
-type JsonSchema = typeof IDEAS_SCHEMA | typeof SHOPPING_SCHEMA | typeof TASKS_SCHEMA
+type JsonSchema = typeof IDEAS_SCHEMA | typeof SHOPPING_SCHEMA | typeof TASKS_SCHEMA | typeof SCHEDULE_SCHEMA
 
 // Zwei Wege zum selben Ziel:
 //
@@ -209,4 +214,40 @@ export async function generatePlanningTasks(
     selectedTiles,
   })
   return response.tasks
+}
+
+export async function generatePartySchedule(
+  topic: string,
+  partyDetails: PartyDetails,
+  selectedTiles: ShoppingSourceTile[]
+): Promise<RawPartyScheduleItem[]> {
+  if (import.meta.env.DEV) {
+    try {
+      const result = await callOpenAIDirect<{ items: RawPartyScheduleItem[] }>(
+        SYSTEM_SCHEDULE,
+        buildScheduleUserMessage(topic, partyDetails, selectedTiles),
+        SCHEDULE_SCHEMA,
+        'party_schedule',
+        1800
+      )
+      return result.items
+    } catch (error) {
+      if (!isTruncatedJsonError(error)) throw error
+      const retry = await callOpenAIDirect<{ items: RawPartyScheduleItem[] }>(
+        SYSTEM_SCHEDULE,
+        buildScheduleUserMessageCompact(topic, partyDetails, selectedTiles),
+        SCHEDULE_SCHEMA,
+        'party_schedule',
+        1000
+      )
+      return retry.items
+    }
+  }
+
+  const response = await callProxy<{ items: RawPartyScheduleItem[] }>('/api/schedule', {
+    topic,
+    partyDetails,
+    selectedTiles,
+  })
+  return response.items
 }

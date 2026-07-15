@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { useBoard } from '../lib/storage'
+import { getConfirmedGuestTotal } from '../lib/prompts'
+import { formatPartyScheduleLabel, sortPartySchedule } from '../lib/schedule'
 import { categoryColor } from './TileCard'
 import { ShoppingListSection } from './ShoppingListSection'
 import { TaskTimelineSection } from './TaskTimelineSection'
@@ -49,8 +51,18 @@ export function BoardPlanView({
   }, [board.tiles])
 
   const hasSelectedIdeas = selectedByCategory.size > 0
+  const confirmedGuestTotal = getConfirmedGuestTotal(board.partyDetails)
   const guestCountLabel =
-    typeof board.partyDetails.guestCount === 'number' ? `${board.partyDetails.guestCount}` : '–'
+    confirmedGuestTotal > 0
+      ? `${confirmedGuestTotal} Person${confirmedGuestTotal === 1 ? '' : 'en'}`
+      : typeof board.partyDetails.guestCount === 'number'
+        ? `${board.partyDetails.guestCount}`
+        : '–'
+  const ageLabel =
+    typeof board.partyDetails.age === 'number' && board.partyDetails.age > 0
+      ? `${Math.round(board.partyDetails.age)} Jahre`
+      : null
+  const preferencesLabel = board.partyDetails.preferences.trim() || null
   const totalShoppingPrice = board.shoppingList.reduce(
     (sum, item) => sum + (typeof item.priceEuro === 'number' ? item.priceEuro : 0),
     0
@@ -68,6 +80,7 @@ export function BoardPlanView({
     typeof budgetLimit === 'number' && Number.isFinite(budgetLimit)
       ? `${costText} · Budget ${euro.format(budgetLimit)}`
       : costText
+  const sortedSchedule = useMemo(() => sortPartySchedule(board.partySchedule), [board.partySchedule])
 
   return (
     <div className="space-y-6 print:space-y-4">
@@ -103,12 +116,25 @@ export function BoardPlanView({
         <div className="grid gap-4 py-5 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-3 print:gap-3">
           <InfoCard label="Anlass / Für wen" value={board.partyDetails.forWhom || 'Nicht gesetzt'} />
           <InfoCard label="Motto" value={board.partyDetails.theme || 'Keins gesetzt'} />
+          {ageLabel && <InfoCard label="Alter" value={ageLabel} />}
           <InfoCard label="Ort" value={board.partyDetails.location || 'Nicht gesetzt'} />
           <InfoCard label="Datum" value={formatPartyDate(board.partyDetails.date, board.partyDetails.time)} />
           <InfoCard label="Uhrzeit" value={board.partyDetails.time || 'Nicht gesetzt'} />
-          <InfoCard label="Gästezahl" value={guestCountLabel} />
+          <InfoCard
+            label="Gästezahl"
+            value={
+              confirmedGuestTotal > 0 && typeof board.partyDetails.guestCount === 'number'
+                ? `${guestCountLabel} · geplant ${board.partyDetails.guestCount}`
+                : guestCountLabel
+            }
+          />
           <InfoCard label="Zeitplan-Aufgaben" value={`${planningTaskCount}`} />
           <InfoCard label="Einkaufskosten" value={budgetText} />
+          {preferencesLabel && (
+            <div className="sm:col-span-2 lg:col-span-3">
+              <InfoCard label="Vorlieben / Besonderheiten" value={preferencesLabel} />
+            </div>
+          )}
         </div>
 
         <div className="grid gap-6 border-t border-orange-100 pt-5 lg:grid-cols-[1.2fr_0.8fr] print:grid-cols-2 print:border-stone-300">
@@ -143,29 +169,39 @@ export function BoardPlanView({
               </div>
             )}
           </section>
-
-          <section className="rounded-[1.35rem] border border-orange-100 bg-orange-50/50 p-4 print:rounded-none print:border-stone-300 print:bg-white">
-            <h2 className="text-sm font-extrabold uppercase tracking-[0.16em] text-orange-600 print:text-black">
-              Kurzinfo
-            </h2>
-            <dl className="mt-3 space-y-2 text-sm">
-              <div className="flex items-start justify-between gap-4 border-b border-orange-100 pb-2 print:border-stone-200">
-                <dt className="text-stone-500">Board-Titel</dt>
-                <dd className="font-semibold text-stone-800 text-right">{board.topic || '–'}</dd>
-              </div>
-              <div className="flex items-start justify-between gap-4 border-b border-orange-100 pb-2 print:border-stone-200">
-                <dt className="text-stone-500">Gespeicherte Kacheln</dt>
-                <dd className="font-semibold text-stone-800">{board.tiles.length}</dd>
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-stone-500">Ausgewählt</dt>
-                <dd className="font-semibold text-stone-800">
-                  {board.tiles.filter((tile) => tile.selected).length}
-                </dd>
-              </div>
-            </dl>
-          </section>
         </div>
+
+        <section className="mt-5 rounded-[1.35rem] border border-orange-100 bg-orange-50/50 p-4 print:rounded-none print:border-stone-300 print:bg-white">
+          <h2 className="text-sm font-extrabold uppercase tracking-[0.16em] text-orange-600 print:text-black">
+            Ablaufplan
+          </h2>
+          {sortedSchedule.length === 0 ? (
+            <p className="mt-3 text-sm text-stone-500 print:text-stone-700">
+              Noch kein Ablaufplan generiert.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {sortedSchedule.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-2 rounded-2xl border border-orange-100 bg-white px-3 py-2.5 print:border-stone-200 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold text-stone-800">{item.title}</span>
+                    {item.note && (
+                      <p className="mt-1 text-xs leading-relaxed text-stone-500 print:text-stone-700">
+                        {item.note}
+                      </p>
+                    )}
+                  </div>
+                  <span className="self-start rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 print:border print:border-stone-300 print:bg-white">
+                    {formatPartyScheduleLabel(item, board.partyDetails)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
         <section className="border-t border-orange-100 pt-5 print:border-stone-300">
           <div className="flex items-end justify-between gap-3">

@@ -2,12 +2,19 @@ import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import type { PartyDetails, Tile } from '../types'
 import { useBoard } from '../lib/storage'
 import { saveBoard as saveBoardRemote } from '../lib/boardApi'
-import { generateIdeas, generateMoreIdeas, generatePlanningTasks, generateShoppingList } from '../lib/claude'
+import {
+  generateIdeas,
+  generateMoreIdeas,
+  generatePlanningTasks,
+  generatePartySchedule,
+  generateShoppingList,
+} from '../lib/claude'
 import { fetchLinkPreview } from '../lib/og'
 import { summarizePartyDetails } from '../lib/prompts'
 import { TileCard, categoryColor } from './TileCard'
 import { TileEditor } from './TileEditor'
 import { PartyDetailsFields } from './PartyDetailsFields'
+import { PartyScheduleSection } from './PartyScheduleSection'
 import { ShoppingListSection } from './ShoppingListSection'
 import { TaskTimelineSection } from './TaskTimelineSection'
 import type { RawShoppingItem, ShoppingSourceTile } from '../lib/prompts'
@@ -21,6 +28,8 @@ function isPartyDetailsEmpty(details: PartyDetails): boolean {
   return !(
     details.forWhom.trim() ||
     details.theme.trim() ||
+    details.age !== null ||
+    details.preferences.trim() ||
     details.location.trim() ||
     details.date ||
     details.time ||
@@ -115,10 +124,42 @@ function mergePlanningSuggestions(
   return next
 }
 
+function mergeScheduleSuggestions(
+  current: { id: string; title: string; note?: string; minutesFromStart?: number | null; source: 'ai' | 'manual'; createdAt: number }[],
+  suggestions: { title: string; note: string; minutesFromStart: number }[]
+) {
+  const currentByKey = new Map(current.map((item) => [item.title.trim().toLowerCase(), item]))
+  const manualItems = current.filter((item) => item.source === 'manual')
+  const next = [...manualItems]
+  const seen = new Set(next.map((item) => item.title.trim().toLowerCase()))
+
+  for (const suggestion of suggestions) {
+    const title = suggestion.title.trim()
+    if (!title) continue
+    const key = title.toLowerCase()
+    if (seen.has(key)) continue
+    const existing = currentByKey.get(key)
+    next.push({
+      id: existing?.id ?? crypto.randomUUID(),
+      title,
+      note: suggestion.note.trim() || undefined,
+      minutesFromStart:
+        typeof suggestion.minutesFromStart === 'number' && Number.isFinite(suggestion.minutesFromStart)
+          ? Math.max(0, Math.round(suggestion.minutesFromStart))
+          : existing?.minutesFromStart ?? null,
+      source: 'ai',
+      createdAt: existing?.createdAt ?? Date.now(),
+    })
+    seen.add(key)
+  }
+
+  return next
+}
+
 // Die komplette Ansicht EINES Boards. Wird in App per key={boardId}
 // eingebunden – beim Board-Wechsel baut React die Komponente neu auf
 // und useBoard lädt sauber den Stand des neuen Boards.
-export type BoardSection = 'overview' | 'guests' | 'ideas' | 'shopping' | 'timeline'
+export type BoardSection = 'overview' | 'guests' | 'ideas' | 'shopping' | 'timeline' | 'schedule'
 
 export function BoardView({
   boardId,
@@ -135,6 +176,7 @@ export function BoardView({
   const [loadingLink, setLoadingLink] = useState(false)
   const [loadingShopping, setLoadingShopping] = useState(false)
   const [loadingTasks, setLoadingTasks] = useState(false)
+  const [loadingSchedule, setLoadingSchedule] = useState(false)
   const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
   const [editingDetails, setEditingDetails] = useState(() => isPartyDetailsEmpty(board.partyDetails))
   const shareTimerRef = useRef<number | null>(null)
@@ -322,6 +364,31 @@ export function BoardView({
     }
   }
 
+  async function handleGenerateSchedule() {
+    if (loadingSchedule) return
+    const selectedTiles: ShoppingSourceTile[] = board.tiles
+      .filter((tile) => tile.selected)
+      .map((tile) => ({
+        title: tile.title,
+        description: tile.description,
+        category: tile.category,
+      }))
+
+    setError(null)
+    setLoadingSchedule(true)
+    try {
+      const items = await generatePartySchedule(board.topic, board.partyDetails, selectedTiles)
+      setBoard((current) => ({
+        ...current,
+        partySchedule: mergeScheduleSuggestions(current.partySchedule, items),
+      }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Ablaufplan konnte nicht geladen werden')
+    } finally {
+      setLoadingSchedule(false)
+    }
+  }
+
   function handleDelete(id: string) {
     setBoard((current) => ({ ...current, tiles: current.tiles.filter((t) => t.id !== id) }))
   }
@@ -390,6 +457,56 @@ export function BoardView({
           createdAt: Date.now(),
         },
       ],
+    }))
+  }
+
+  function handleAddScheduleItem(item: {
+    title: string
+    note?: string
+    minutesFromStart?: number | null
+  }) {
+    setBoard((current) => ({
+      ...current,
+      partySchedule: [
+        ...current.partySchedule,
+        {
+          id: crypto.randomUUID(),
+          title: item.title,
+          note: item.note,
+          minutesFromStart: typeof item.minutesFromStart === 'number' ? item.minutesFromStart : null,
+          source: 'manual',
+          createdAt: Date.now(),
+        },
+      ],
+    }))
+  }
+
+  function handleUpdateScheduleItem(
+    id: string,
+    patch: { title?: string; note?: string; minutesFromStart?: number | null }
+  ) {
+    setBoard((current) => ({
+      ...current,
+      partySchedule: current.partySchedule.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              ...(typeof patch.title === 'string' ? { title: patch.title } : {}),
+              ...(typeof patch.note === 'string' ? { note: patch.note } : {}),
+              ...(patch.minutesFromStart === null ||
+              typeof patch.minutesFromStart === 'number'
+                ? { minutesFromStart: patch.minutesFromStart }
+                : {}),
+            }
+          : item
+      ),
+    }))
+  }
+
+  function handleRemoveScheduleItem(id: string) {
+    setBoard((current) => ({
+      ...current,
+      partySchedule: current.partySchedule.filter((item) => item.id !== id),
     }))
   }
 
@@ -465,6 +582,7 @@ export function BoardView({
   const showIdeas = activeSection === 'ideas'
   const showShopping = activeSection === 'shopping'
   const showTimeline = activeSection === 'timeline'
+  const showSchedule = activeSection === 'schedule'
   const summaryLines = partySummary ? partySummary.split('\n').filter(Boolean) : []
   const hasPartyDetails = !isPartyDetailsEmpty(board.partyDetails)
   const showDetailsEditor = showOverview && (editingDetails || !hasPartyDetails)
@@ -714,6 +832,21 @@ export function BoardView({
             onToggleItem={handleTogglePlanningTask}
             onAddItem={handleAddPlanningTask}
             onRemoveItem={handleRemovePlanningTask}
+          />
+        </div>
+      )}
+
+      {showSchedule && (
+        <div className="mt-12">
+          <PartyScheduleSection
+            items={board.partySchedule}
+            partyDetails={board.partyDetails}
+            editable
+            generating={loadingSchedule}
+            onGenerate={handleGenerateSchedule}
+            onAddItem={handleAddScheduleItem}
+            onUpdateItem={handleUpdateScheduleItem}
+            onRemoveItem={handleRemoveScheduleItem}
           />
         </div>
       )}

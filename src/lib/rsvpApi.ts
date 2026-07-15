@@ -27,7 +27,8 @@ export async function submitRsvp(
   name: string,
   status: GuestStatus,
   boardId?: string,
-  allergies?: string
+  allergies?: string,
+  personCount?: number
 ): Promise<{ ok: true; status: GuestStatus; name: string }> {
   const url = new URL('/api/rsvp', window.location.origin)
   url.searchParams.set('token', token)
@@ -35,7 +36,7 @@ export async function submitRsvp(
   const res = await fetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, status, allergies }),
+    body: JSON.stringify({ name, status, allergies, personCount }),
   })
   const json = await parseJson<{ ok: true; status: GuestStatus; name: string }>(res)
   return json

@@ -93,6 +93,15 @@ function formatEuroInput(value: number | null): string {
   return typeof value === 'number' && Number.isFinite(value) ? String(value).replace('.', ',') : ''
 }
 
+function formatPersonCount(value?: number): string {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 1) return '1'
+  return String(Math.max(1, Math.round(value)))
+}
+
+function formatAge(value: number | null): string {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? String(Math.round(value)) : ''
+}
+
 export function PartyDetailsFields({
   value,
   onChange,
@@ -104,6 +113,7 @@ export function PartyDetailsFields({
 }: Props) {
   const [guestName, setGuestName] = useState('')
   const [guestAllergies, setGuestAllergies] = useState('')
+  const [guestPersonCount, setGuestPersonCount] = useState('1')
   const [guestStatus, setGuestStatus] = useState<GuestStatus>('eingeladen')
   const calendarReady = Boolean(value.date && value.time)
 
@@ -130,10 +140,22 @@ export function PartyDetailsFields({
     updateField('budgetLimitEuro', Number.isFinite(parsed) && parsed >= 0 ? parsed : null)
   }
 
+  function handleAge(nextValue: string) {
+    const trimmed = nextValue.trim()
+    if (!trimmed) {
+      updateField('age', null)
+      return
+    }
+    const parsed = Number.parseInt(trimmed, 10)
+    updateField('age', Number.isFinite(parsed) && parsed > 0 ? parsed : null)
+  }
+
   function addGuest() {
     const name = guestName.trim()
     if (!name) return
     const allergies = guestAllergies.trim()
+    const count = Number.parseInt(guestPersonCount, 10)
+    const personCount = Number.isFinite(count) && count > 0 ? count : 1
     onChange({
       ...value,
       guests: [
@@ -142,12 +164,14 @@ export function PartyDetailsFields({
           id: crypto.randomUUID(),
           name,
           status: guestStatus,
+          personCount,
           allergies: allergies || undefined,
         },
       ],
     })
     setGuestName('')
     setGuestAllergies('')
+    setGuestPersonCount('1')
     setGuestStatus('eingeladen')
   }
 
@@ -155,7 +179,11 @@ export function PartyDetailsFields({
     onChange({ ...value, guests: value.guests.filter((guest) => guest.id !== id) })
   }
 
-  function updateGuestField(id: string, field: 'status' | 'allergies', nextValue: string) {
+  function updateGuestField(
+    id: string,
+    field: 'status' | 'allergies' | 'personCount',
+    nextValue: string
+  ) {
     onChange({
       ...value,
       guests: value.guests.map((guest) =>
@@ -165,7 +193,12 @@ export function PartyDetailsFields({
               [field]:
                 field === 'status'
                   ? (nextValue as GuestStatus)
-                  : nextValue.trim() || undefined,
+                  : field === 'personCount'
+                    ? (() => {
+                        const parsed = Number.parseInt(nextValue, 10)
+                        return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+                      })()
+                    : nextValue.trim() || undefined,
             }
           : guest
       ),
@@ -193,6 +226,18 @@ export function PartyDetailsFields({
               placeholder="z.B. Pokémon, Piraten, Einhörner (optional)"
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-semibold text-stone-600">Alter</span>
+            <input
+              type="number"
+              min="1"
+              value={formatAge(value.age)}
+              onChange={(e) => handleAge(e.target.value)}
+              placeholder="z.B. 8"
+              className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
+            />
+            <span className="text-xs text-stone-400">Optional, vor allem für Kindergeburtstage.</span>
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-semibold text-stone-600">Ort</span>
@@ -242,6 +287,17 @@ export function PartyDetailsFields({
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
             <span className="text-xs text-stone-400">Optional, in Euro.</span>
+          </label>
+          <label className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
+            <span className="text-sm font-semibold text-stone-600">Vorlieben / Besonderheiten</span>
+            <textarea
+              value={value.preferences}
+              onChange={(e) => updateField('preferences', e.target.value)}
+              placeholder="z.B. mag Dinosaurier und Fußball · keine lauten Spiele · liebt Einhörner"
+              rows={3}
+              className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
+            />
+            <span className="text-xs text-stone-400">Optional, mehr Kontext für KI-Ideen und Planung.</span>
           </label>
         </div>
       )}
@@ -328,6 +384,14 @@ export function PartyDetailsFields({
               placeholder="Allergien / Unverträglichkeiten (optional)"
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100 lg:col-span-3"
             />
+            <input
+              type="number"
+              min="1"
+              value={guestPersonCount}
+              onChange={(e) => setGuestPersonCount(e.target.value)}
+              placeholder="Anzahl Personen inkl. dir"
+              className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100 lg:col-span-3"
+            />
           </div>
 
           {value.guests.length === 0 ? (
@@ -342,22 +406,42 @@ export function PartyDetailsFields({
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold text-stone-800">{guest.name}</p>
+                      <p className="mt-0.5 text-xs text-stone-500">
+                        {guest.status}
+                        {guest.status === 'zugesagt' && (
+                          <>
+                            {`, ${formatPersonCount(guest.personCount)} Person${
+                              formatPersonCount(guest.personCount) === '1' ? '' : 'en'
+                            }`}
+                          </>
+                        )}
+                      </p>
                     </div>
-                    <select
-                      value={guest.status}
-                      onChange={(e) => updateGuestField(guest.id, 'status', e.target.value)}
-                      className="rounded-full border border-orange-100 bg-white px-3 py-1.5 text-sm text-stone-700 outline-none transition focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
-                    >
-                      <option value="eingeladen">eingeladen</option>
-                      <option value="zugesagt">zugesagt</option>
-                      <option value="abgesagt">abgesagt</option>
-                    </select>
-                    <button
-                      onClick={() => removeGuest(guest.id)}
-                      className="rounded-full px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
-                    >
-                      Entfernen
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={guest.status}
+                        onChange={(e) => updateGuestField(guest.id, 'status', e.target.value)}
+                        className="rounded-full border border-orange-100 bg-white px-3 py-1.5 text-sm text-stone-700 outline-none transition focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
+                      >
+                        <option value="eingeladen">eingeladen</option>
+                        <option value="zugesagt">zugesagt</option>
+                        <option value="abgesagt">abgesagt</option>
+                      </select>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formatPersonCount(guest.personCount)}
+                        onChange={(e) => updateGuestField(guest.id, 'personCount', e.target.value)}
+                        className="w-24 rounded-full border border-orange-100 bg-white px-3 py-1.5 text-sm text-stone-700 outline-none transition focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
+                        aria-label={`Personenanzahl für ${guest.name}`}
+                      />
+                      <button
+                        onClick={() => removeGuest(guest.id)}
+                        className="rounded-full px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+                      >
+                        Entfernen
+                      </button>
+                    </div>
                   </div>
                   <input
                     value={guest.allergies ?? ''}

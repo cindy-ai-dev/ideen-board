@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-import { IDEAS_SCHEMA, MODEL, TASKS_SCHEMA, type RawIdea, type RawPlanningTask } from '../src/lib/prompts.js'
+import { IDEAS_SCHEMA, MODEL, SCHEDULE_SCHEMA, TASKS_SCHEMA, type RawIdea, type RawPlanningTask, type RawPartyScheduleItem } from '../src/lib/prompts.js'
 import {
   SHOPPING_SCHEMA,
   type RawShoppingItem,
@@ -8,7 +8,7 @@ import {
 // Gemeinsamer Kern beider API-Funktionen. Läuft NUR auf dem Server –
 // der Key kommt aus der Vercel-Umgebungsvariable OPENAI_API_KEY
 // (ohne VITE_-Prefix: damit kann er nie ins Browser-Bundle rutschen).
-type JsonSchema = typeof IDEAS_SCHEMA | typeof SHOPPING_SCHEMA | typeof TASKS_SCHEMA
+type JsonSchema = typeof IDEAS_SCHEMA | typeof SHOPPING_SCHEMA | typeof TASKS_SCHEMA | typeof SCHEDULE_SCHEMA
 
 async function askOpenAIJson<T>(
   system: string,
@@ -117,4 +117,21 @@ export async function askOpenAITasks(
     retryMaxOutputTokens: 1200,
   })
   return data.tasks
+}
+
+export async function askOpenAISchedule(
+  system: string,
+  userMessage: string,
+  retryUserMessage: string
+): Promise<RawPartyScheduleItem[]> {
+  const data = await askOpenAIJsonWithRetry<{ items: RawPartyScheduleItem[] }>({
+    system,
+    userMessage,
+    retryUserMessage,
+    schema: SCHEDULE_SCHEMA,
+    responseName: 'party_schedule',
+    maxOutputTokens: 1800,
+    retryMaxOutputTokens: 1000,
+  })
+  return data.items
 }

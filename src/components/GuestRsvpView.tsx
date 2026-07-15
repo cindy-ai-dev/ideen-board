@@ -18,6 +18,7 @@ export function GuestRsvpView({ token, boardId }: { token: string; boardId?: str
   const [board, setBoard] = useState<PublicRsvpBoard | null>(null)
   const [name, setName] = useState('')
   const [allergies, setAllergies] = useState('')
+  const [personCount, setPersonCount] = useState('1')
   const [status, setStatus] = useState<GuestStatus>('zugesagt')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -50,7 +51,16 @@ export function GuestRsvpView({ token, boardId }: { token: string; boardId?: str
     setError(null)
     setSuccess(null)
     try {
-      const result = await submitRsvp(token, trimmed, nextStatus, boardId, allergies.trim())
+      const nextCount = Number.parseInt(personCount, 10)
+      const normalizedCount = Number.isFinite(nextCount) && nextCount > 0 ? nextCount : 1
+      const result = await submitRsvp(
+        token,
+        trimmed,
+        nextStatus,
+        boardId,
+        allergies.trim(),
+        normalizedCount
+      )
       setStatus(result.status)
       setSuccess(
         result.status === 'zugesagt'
@@ -113,6 +123,23 @@ export function GuestRsvpView({ token, boardId }: { token: string; boardId?: str
                   placeholder="Optional, z. B. Nussallergie, vegan"
                   className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                 />
+              </div>
+
+              <div className="rounded-[1.35rem] border border-orange-100 bg-orange-50/60 p-4">
+                <label className="mb-2 block text-sm font-semibold text-stone-700">
+                  Anzahl Personen
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={personCount}
+                  onChange={(e) => setPersonCount(e.target.value)}
+                  placeholder="1"
+                  className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
+                />
+                <p className="mt-2 text-xs font-medium text-stone-400">
+                  Wie viele Personen inkl. dir kommen?
+                </p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">

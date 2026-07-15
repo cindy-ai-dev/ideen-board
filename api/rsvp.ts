@@ -45,17 +45,19 @@ function upsertGuest(
   guests: Guest[],
   name: string,
   status: GuestStatus,
-  allergies?: string
+  allergies?: string,
+  personCount?: number
 ): Guest[] {
   const key = normalizeGuestKey(name)
   const existingIndex = guests.findIndex((guest) => normalizeGuestKey(guest.name) === key)
   if (existingIndex >= 0) {
     return guests.map((guest, index) =>
       index === existingIndex
-        ? {
+          ? {
             ...guest,
             status,
             allergies: allergies === undefined ? guest.allergies : allergies || undefined,
+            personCount: typeof personCount === 'number' && personCount > 0 ? personCount : guest.personCount ?? 1,
           }
         : guest
     )
@@ -67,6 +69,7 @@ function upsertGuest(
       id: crypto.randomUUID(),
       name: name.trim(),
       status,
+      personCount: typeof personCount === 'number' && personCount > 0 ? personCount : 1,
       allergies: normalizeOptionalText(allergies),
     },
   ]
@@ -102,6 +105,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const name = typeof req.body?.name === 'string' ? req.body.name.trim() : ''
       const status = req.body?.status
       const allergies = req.body?.allergies
+      const personCount =
+        typeof req.body?.personCount === 'number'
+          ? req.body.personCount
+          : typeof req.body?.personCount === 'string'
+            ? Number.parseInt(req.body.personCount, 10)
+            : undefined
       if (!name || !isGuestStatus(status)) {
         res.status(400).json({ error: 'Ungültige Gästedaten' })
         return
@@ -113,7 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ...board.data,
           partyDetails: {
             ...board.data.partyDetails,
-            guests: upsertGuest(board.data.partyDetails.guests, name, status, allergies),
+            guests: upsertGuest(board.data.partyDetails.guests, name, status, allergies, personCount),
           },
         },
       }

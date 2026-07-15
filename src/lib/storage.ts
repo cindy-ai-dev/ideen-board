@@ -10,6 +10,7 @@ import {
   type Guest,
   type PartyDetails,
   type PlanningTaskItem,
+  type PartyScheduleItem,
   type ShoppingListItem,
   type Tile,
 } from '../types'
@@ -36,6 +37,17 @@ function parseNonNegativeInteger(value: unknown): number | null {
   return null
 }
 
+function parsePositiveInteger(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value > 0 ? value : null
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number.parseInt(value.trim(), 10)
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+  }
+  return null
+}
+
 function parseNonNegativeNumber(value: unknown): number | null {
   if (typeof value === 'number') {
     return Number.isFinite(value) && value >= 0 ? value : null
@@ -55,11 +67,13 @@ function normalizeGuest(value: unknown): Guest | null {
     return null
   }
   const allergies = typeof value.allergies === 'string' ? value.allergies.trim() : ''
+  const personCount = parsePositiveInteger(value.personCount)
 
   return {
     id: typeof value.id === 'string' && value.id.trim() ? value.id : crypto.randomUUID(),
     name,
     status,
+    personCount: personCount ?? 1,
     allergies: allergies ? allergies : undefined,
   }
 }
@@ -70,10 +84,13 @@ function normalizePartyDetails(value: unknown): PartyDetails {
 
   const guestCount = parseNonNegativeInteger(value.guestCount)
   const budgetLimitEuro = parseNonNegativeNumber(value.budgetLimitEuro)
+  const age = parsePositiveInteger(value.age)
 
   return {
     forWhom: typeof value.forWhom === 'string' ? value.forWhom : '',
     theme: typeof value.theme === 'string' ? value.theme : '',
+    age,
+    preferences: typeof value.preferences === 'string' ? value.preferences : '',
     location: typeof value.location === 'string' ? value.location : '',
     date: typeof value.date === 'string' ? value.date : '',
     time: typeof value.time === 'string' ? value.time : '',
@@ -141,6 +158,21 @@ function normalizePlanningTaskItem(value: unknown): PlanningTaskItem | null {
   }
 }
 
+function normalizePartyScheduleItem(value: unknown): PartyScheduleItem | null {
+  if (!isObject(value)) return null
+  const title = typeof value.title === 'string' ? value.title.trim() : ''
+  if (!title) return null
+  const minutes = parseNonNegativeInteger(value.minutesFromStart)
+  return {
+    id: typeof value.id === 'string' && value.id.trim() ? value.id : crypto.randomUUID(),
+    title,
+    note: typeof value.note === 'string' && value.note.trim() ? value.note.trim() : undefined,
+    minutesFromStart: minutes,
+    source: value.source === 'manual' ? 'manual' : 'ai',
+    createdAt: typeof value.createdAt === 'number' ? value.createdAt : Date.now(),
+  }
+}
+
 function normalizeBoard(raw: unknown, boardId: string): BoardState {
   if (!isObject(raw)) return createEmptyBoard()
 
@@ -167,6 +199,11 @@ function normalizeBoard(raw: unknown, boardId: string): BoardState {
       ? raw.planningTasks
           .map((item) => normalizePlanningTaskItem(item))
           .filter((item): item is PlanningTaskItem => item !== null)
+      : [],
+    partySchedule: Array.isArray(raw.partySchedule)
+      ? raw.partySchedule
+          .map((item) => normalizePartyScheduleItem(item))
+          .filter((item): item is PartyScheduleItem => item !== null)
       : [],
     rsvpToken: typeof raw.rsvpToken === 'string' && raw.rsvpToken.trim() ? raw.rsvpToken : createRsvpToken(),
   }

@@ -19,12 +19,15 @@ export interface Guest {
   id: string
   name: string
   status: GuestStatus
+  personCount?: number
   allergies?: string
 }
 
 export interface PartyDetails {
   forWhom: string
   theme: string
+  age: number | null
+  preferences: string
   location: string
   date: string
   time: string
@@ -55,12 +58,22 @@ export interface PlanningTaskItem {
   createdAt: number
 }
 
+export interface PartyScheduleItem {
+  id: string
+  title: string
+  note?: string
+  minutesFromStart?: number | null
+  source: 'ai' | 'manual'
+  createdAt: number
+}
+
 export interface BoardState {
   topic: string
   partyDetails: PartyDetails
   tiles: Tile[]
   shoppingList: ShoppingListItem[]
   planningTasks: PlanningTaskItem[]
+  partySchedule: PartyScheduleItem[]
   rsvpToken: string
 }
 
@@ -81,6 +94,8 @@ export function createEmptyPartyDetails(): PartyDetails {
   return {
     forWhom: '',
     theme: '',
+    age: null,
+    preferences: '',
     location: '',
     date: '',
     time: '',
@@ -97,6 +112,7 @@ export function createEmptyBoard(): BoardState {
     tiles: [],
     shoppingList: [],
     planningTasks: [],
+    partySchedule: [],
     rsvpToken: createRsvpToken(),
   }
 }
