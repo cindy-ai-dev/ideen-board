@@ -3,6 +3,7 @@ import { deleteBoard as deleteBoardRemote, fetchBoard, fetchBoards, saveBoard as
 import {
   createEmptyBoard,
   createEmptyPartyDetails,
+  createRsvpToken,
   type BoardMeta,
   type BoardRecord,
   type BoardState,
@@ -123,6 +124,14 @@ function normalizeBoard(raw: unknown, boardId: string): BoardState {
           .map((item) => normalizeShoppingListItem(item))
           .filter((item): item is ShoppingListItem => item !== null)
       : [],
+    rsvpToken: typeof raw.rsvpToken === 'string' && raw.rsvpToken.trim() ? raw.rsvpToken : createRsvpToken(),
+  }
+}
+
+function withRsvpToken(board: BoardState): BoardState {
+  return {
+    ...board,
+    rsvpToken: board.rsvpToken?.trim() ? board.rsvpToken : createRsvpToken(),
   }
 }
 
@@ -211,7 +220,7 @@ function getBoardNameFromCache(boardId: string) {
 }
 
 function saveLocalBoard(boardId: string, state: BoardState) {
-  writeBoardCache(boardId, state)
+  writeBoardCache(boardId, withRsvpToken(state))
 }
 
 function saveLocalRegistryFromRecords(records: BoardRecord[]) {
@@ -227,7 +236,7 @@ async function migrateLocalBoardsToRemote(): Promise<BoardRecord[]> {
 
   const migrated: BoardRecord[] = []
   for (const board of localBoards) {
-    const state = readBoardCache(board.id)
+    const state = withRsvpToken(readBoardCache(board.id))
     const record = await saveBoardRemote(board.id, board.name, state)
     migrated.push(record)
     saveLocalBoard(record.id, record.data)
@@ -237,10 +246,10 @@ async function migrateLocalBoardsToRemote(): Promise<BoardRecord[]> {
 }
 
 function ensureLocalBoard(boardId: string, state: BoardState) {
-  writeBoardCache(boardId, state)
+  writeBoardCache(boardId, withRsvpToken(state))
   const registry = readRegistryCache()
   if (!registry.some((board) => board.id === boardId)) {
-    const next = [...registry, boardMetaFromState(boardId, state)]
+    const next = [...registry, boardMetaFromState(boardId, withRsvpToken(state))]
     writeRegistryCache(next)
   }
 }
@@ -387,19 +396,20 @@ export function useBoards() {
 
   async function createBoard(name: string, initialState: BoardState = createEmptyBoard()) {
     const boardId = crypto.randomUUID()
+    const stateWithToken = withRsvpToken(initialState)
     const localRecord: BoardRecord = {
       id: boardId,
       name,
-      data: initialState,
+      data: stateWithToken,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }
     const nextBoards = [...boards, localRecord]
     setBoards(nextBoards)
     setActiveIdState(boardId)
-    ensureLocalBoard(boardId, initialState)
+    ensureLocalBoard(boardId, stateWithToken)
     try {
-      const record = await saveBoardRemote(boardId, name, initialState)
+      const record = await saveBoardRemote(boardId, name, stateWithToken)
       saveLocalBoard(record.id, record.data)
       const nextRegistry = nextBoards.map((board) => (board.id === record.id ? record : board))
       writeRegistryCache(nextRegistry)
@@ -437,15 +447,15 @@ export function useBoards() {
       const fresh: BoardRecord = {
         id: freshId,
         name: 'Neues Board',
-        data: freshState,
+        data: withRsvpToken(freshState),
         createdAt: Date.now(),
         updatedAt: Date.now(),
       }
       setBoards([fresh])
       setActiveIdState(freshId)
-      ensureLocalBoard(freshId, freshState)
+      ensureLocalBoard(freshId, fresh.data)
       try {
-        await saveBoardRemote(freshId, fresh.name, freshState)
+        await saveBoardRemote(freshId, fresh.name, fresh.data)
         writeRegistryCache([boardMetaFromRecord(fresh)])
       } catch {
         writeRegistryCache([boardMetaFromRecord(fresh)])
@@ -473,12 +483,12 @@ export function useBoards() {
 // Wichtig: Die Komponente, die diesen Hook nutzt, wird beim Board-Wechsel
 // per key={boardId} neu aufgebaut – deshalb reicht der useState-Initializer.
 export function useBoard(boardId: string) {
-  const [board, setBoard] = useState<BoardState>(() => loadBoard(boardId))
+  const [board, setBoard] = useState<BoardState>(() => withRsvpToken(loadBoard(boardId)))
   const hydratedRef = useRef(false)
 
   useEffect(() => {
     hydratedRef.current = false
-    setBoard(loadBoard(boardId))
+    setBoard(withRsvpToken(loadBoard(boardId)))
 
     let cancelled = false
     void (async () => {
@@ -486,11 +496,11 @@ export function useBoard(boardId: string) {
         const remote = await fetchBoard(boardId)
         if (cancelled) return
         if (remote) {
-          const normalized = normalizeBoard(remote.data, remote.id)
+          const normalized = withRsvpToken(normalizeBoard(remote.data, remote.id))
           saveLocalBoard(remote.id, normalized)
           setBoard(normalized)
         } else {
-          const cached = loadBoard(boardId)
+          const cached = withRsvpToken(loadBoard(boardId))
           const record = await saveBoardRemote(
             boardId,
             getBoardNameFromCache(boardId) || cached.partyDetails.forWhom.trim() || cached.topic.trim() || 'Neues Board',
@@ -498,7 +508,7 @@ export function useBoard(boardId: string) {
           )
           if (cancelled) return
           saveLocalBoard(record.id, normalizeBoard(record.data, record.id))
-          setBoard(normalizeBoard(record.data, record.id))
+          setBoard(withRsvpToken(normalizeBoard(record.data, record.id)))
         }
       } catch {
         // локaler Cache bleibt erhalten
@@ -514,7 +524,7 @@ export function useBoard(boardId: string) {
 
   useEffect(() => {
     if (!hydratedRef.current) return
-    saveLocalBoard(boardId, board)
+    saveLocalBoard(boardId, withRsvpToken(board))
     const boardName =
       getBoardNameFromCache(boardId) || board.partyDetails.forWhom.trim() || board.topic.trim() || 'Neues Board'
 
@@ -533,8 +543,8 @@ export function useBoard(boardId: string) {
         try {
           const remote = await fetchBoard(boardId)
           if (!remote) return
-          const normalized = normalizeBoard(remote.data, remote.id)
-          const current = JSON.stringify(board)
+          const normalized = withRsvpToken(normalizeBoard(remote.data, remote.id))
+          const current = JSON.stringify(withRsvpToken(board))
           const incoming = JSON.stringify(normalized)
           if (current !== incoming) {
             saveLocalBoard(boardId, normalized)

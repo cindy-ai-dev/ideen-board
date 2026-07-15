@@ -1,6 +1,7 @@
-import { useMemo, useState, type DragEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import type { PartyDetails, Tile } from '../types'
 import { useBoard } from '../lib/storage'
+import { saveBoard as saveBoardRemote } from '../lib/boardApi'
 import { generateIdeas, generateMoreIdeas, generateShoppingList } from '../lib/claude'
 import { fetchLinkPreview } from '../lib/og'
 import { summarizePartyDetails } from '../lib/prompts'
@@ -9,7 +10,7 @@ import { TileEditor } from './TileEditor'
 import { PartyDetailsFields } from './PartyDetailsFields'
 import { ShoppingListSection } from './ShoppingListSection'
 import type { RawShoppingItem, ShoppingSourceTile } from '../lib/prompts'
-import type { ShoppingListItem } from '../types'
+import { createRsvpToken, type ShoppingListItem } from '../types'
 
 function normalizeShoppingKey(section: string, label: string): string {
   return `${section.trim().toLowerCase()}::${label.trim().toLowerCase()}`
@@ -55,6 +56,8 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
   const [loadingIdeas, setLoadingIdeas] = useState(false)
   const [loadingLink, setLoadingLink] = useState(false)
   const [loadingShopping, setLoadingShopping] = useState(false)
+  const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
+  const shareTimerRef = useRef<number | null>(null)
   // Welche Kategorie gerade Nachschub lädt (null = keine)
   const [loadingMore, setLoadingMore] = useState<string | null>(null)
   // Editor: 'new' = neue eigene Kachel, Tile = diese Kachel bearbeiten
@@ -81,6 +84,12 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
       partyDetails: next,
     }))
   }
+
+  useEffect(() => {
+    return () => {
+      if (shareTimerRef.current !== null) window.clearTimeout(shareTimerRef.current)
+    }
+  }, [])
 
   async function handleGenerate() {
     if (loadingIdeas) return
@@ -134,6 +143,42 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
       setError(e instanceof Error ? e.message : 'Link konnte nicht geladen werden')
     } finally {
       setLoadingLink(false)
+    }
+  }
+
+  async function handleShareRsvpLink() {
+    let token = board.rsvpToken.trim()
+    if (!token) {
+      token = createRsvpToken()
+      const nextBoard = { ...board, rsvpToken: token }
+      setBoard(nextBoard)
+      try {
+        await saveBoardRemote(
+          boardId,
+          nextBoard.partyDetails.forWhom.trim() || nextBoard.topic.trim() || 'Neues Board',
+          nextBoard
+        )
+      } catch {
+        // Link bleibt lokal nutzbar; Board speichert den Token beim nächsten Autosave nach.
+      }
+    }
+    const url = `${window.location.origin}${window.location.pathname}?rsvp=${encodeURIComponent(token)}&board=${encodeURIComponent(boardId)}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareState('copied')
+      if (shareTimerRef.current !== null) window.clearTimeout(shareTimerRef.current)
+      shareTimerRef.current = window.setTimeout(() => {
+        setShareState('idle')
+        shareTimerRef.current = null
+      }, 1800)
+    } catch {
+      window.prompt('Gäste-Link kopieren', url)
+      setShareState('copied')
+      if (shareTimerRef.current !== null) window.clearTimeout(shareTimerRef.current)
+      shareTimerRef.current = window.setTimeout(() => {
+        setShareState('idle')
+        shareTimerRef.current = null
+      }, 1800)
     }
   }
 
@@ -287,7 +332,12 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
           )}
         </div>
 
-        <PartyDetailsFields value={board.partyDetails} onChange={updatePartyDetails} />
+        <PartyDetailsFields
+          value={board.partyDetails}
+          onChange={updatePartyDetails}
+          onShareRsvpLink={handleShareRsvpLink}
+          shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
+        />
 
         <div className="mt-5 flex flex-wrap justify-end gap-2 print:hidden">
           <button

@@ -1,4 +1,4 @@
-import type { PartyDetails } from '../types'
+import type { PartyDetails } from '../types.js'
 
 // Gemeinsame Bausteine für die OpenAI-Anfragen. Dieses Modul wird von
 // ZWEI Seiten benutzt: vom Browser (lokale Entwicklung) und von den

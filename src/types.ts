@@ -46,6 +46,7 @@ export interface BoardState {
   partyDetails: PartyDetails
   tiles: Tile[]
   shoppingList: ShoppingListItem[]
+  rsvpToken: string
 }
 
 // Ein Eintrag in der Board-Liste. Der Inhalt (Kacheln) liegt separat
@@ -79,7 +80,12 @@ export function createEmptyBoard(): BoardState {
     partyDetails: createEmptyPartyDetails(),
     tiles: [],
     shoppingList: [],
+    rsvpToken: createRsvpToken(),
   }
 }
 
 export const EMPTY_BOARD: BoardState = createEmptyBoard()
+
+export function createRsvpToken(): string {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+}

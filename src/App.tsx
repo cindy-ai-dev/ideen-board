@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useBoards } from './lib/storage'
 import { BoardView } from './components/BoardView'
 import { BoardPlanView } from './components/BoardPlanView'
+import { GuestRsvpView } from './components/GuestRsvpView'
 import { NameDialog } from './components/NameDialog'
 import { PartyDetailsFields } from './components/PartyDetailsFields'
 import { createEmptyPartyDetails, type PartyDetails } from './types'
@@ -58,7 +59,21 @@ function setViewInUrl(view: 'board' | 'plan') {
   window.history.replaceState({}, '', url)
 }
 
-export default function App() {
+function getRsvpTokenFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const token = params.get('rsvp')?.trim()
+  return token ? token : null
+}
+
+function getRsvpBoardIdFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const boardId = params.get('board')?.trim()
+  return boardId ? boardId : null
+}
+
+function HostApp() {
   const { boards, activeId, setActiveId, createBoard, renameBoard, removeBoard } = useBoards()
   const [dialog, setDialog] = useState<'new' | 'rename' | null>(null)
   const [newBoardDetails, setNewBoardDetails] = useState<PartyDetails>(createEmptyPartyDetails())
@@ -257,6 +272,7 @@ export default function App() {
                     partyDetails: details,
                     tiles: [],
                     shoppingList: [],
+                    rsvpToken: '',
                   })
                   setDialog(null)
                 }}
@@ -282,4 +298,13 @@ export default function App() {
       )}
     </div>
   )
+}
+
+export default function App() {
+  const rsvpToken = getRsvpTokenFromUrl()
+  const rsvpBoardId = getRsvpBoardIdFromUrl()
+  if (rsvpToken) {
+    return <GuestRsvpView token={rsvpToken} boardId={rsvpBoardId ?? undefined} />
+  }
+  return <HostApp />
 }

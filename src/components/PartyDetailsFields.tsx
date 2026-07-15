@@ -4,6 +4,8 @@ import type { PartyDetails, GuestStatus } from '../types'
 interface Props {
   value: PartyDetails
   onChange: (next: PartyDetails) => void
+  onShareRsvpLink?: () => void
+  shareLabel?: string
 }
 
 function updateGuestStatus(current: PartyDetails, id: string, status: GuestStatus): PartyDetails {
@@ -88,7 +90,7 @@ function downloadCalendar(value: PartyDetails) {
   URL.revokeObjectURL(url)
 }
 
-export function PartyDetailsFields({ value, onChange }: Props) {
+export function PartyDetailsFields({ value, onChange, onShareRsvpLink, shareLabel }: Props) {
   const [guestName, setGuestName] = useState('')
   const [guestStatus, setGuestStatus] = useState<GuestStatus>('eingeladen')
   const calendarReady = Boolean(value.date && value.time)
@@ -192,11 +194,21 @@ export function PartyDetailsFields({ value, onChange }: Props) {
               Namen hinzufügen und den Status direkt mitpflegen.
             </p>
           </div>
-          {value.guests.length > 0 && (
-            <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-              {value.guests.length} Einträge
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {onShareRsvpLink && (
+              <button
+                onClick={onShareRsvpLink}
+                className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-semibold text-orange-700 transition hover:bg-orange-50"
+              >
+                {shareLabel ?? 'Gäste-Link kopieren'}
+              </button>
+            )}
+            {value.guests.length > 0 && (
+              <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+                {value.guests.length} Einträge
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="mb-4 rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-3">

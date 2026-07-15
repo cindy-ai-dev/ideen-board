@@ -58,6 +58,14 @@ function toRecord(row: {
   }
 }
 
+function createRsvpToken(): string {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+}
+
+function hasRsvpToken(record: BoardRecord): boolean {
+  return typeof record.data.rsvpToken === 'string' && record.data.rsvpToken.trim().length > 0
+}
+
 export async function listBoards(): Promise<BoardRecord[]> {
   await ensureSchema()
   const rows = (await sql`
@@ -65,7 +73,20 @@ export async function listBoards(): Promise<BoardRecord[]> {
     FROM boards
     ORDER BY created_at ASC
   `) as BoardRow[]
-  return rows.map(toRecord)
+  const records: BoardRecord[] = []
+  for (const row of rows) {
+    const record = toRecord(row)
+    if (hasRsvpToken(record)) {
+      records.push(record)
+      continue
+    }
+    const updated = await upsertBoard(record.id, record.name, {
+      ...record.data,
+      rsvpToken: createRsvpToken(),
+    })
+    records.push(updated)
+  }
+  return records
 }
 
 export async function getBoard(id: string): Promise<BoardRecord | null> {
@@ -74,6 +95,20 @@ export async function getBoard(id: string): Promise<BoardRecord | null> {
     SELECT id, name, data, created_at, updated_at
     FROM boards
     WHERE id = ${id}
+    LIMIT 1
+  `) as BoardRow[]
+  if (!rows[0]) return null
+  const record = toRecord(rows[0])
+  if (hasRsvpToken(record)) return record
+  return upsertBoard(record.id, record.name, { ...record.data, rsvpToken: createRsvpToken() })
+}
+
+export async function getBoardByRsvpToken(token: string): Promise<BoardRecord | null> {
+  await ensureSchema()
+  const rows = (await sql`
+    SELECT id, name, data, created_at, updated_at
+    FROM boards
+    WHERE data->>'rsvpToken' = ${token}
     LIMIT 1
   `) as BoardRow[]
   return rows[0] ? toRecord(rows[0]) : null
