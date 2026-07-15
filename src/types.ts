@@ -9,6 +9,7 @@ export interface Tile {
   category: string
   url?: string
   image?: string
+  selected: boolean
   createdAt: number
 }
 

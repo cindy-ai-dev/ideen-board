@@ -71,6 +71,7 @@ function toTiles(ideas: RawIdea[], boardId: string, forceCategory?: string): Til
     // das Modell liefert – der Nachschub soll garantiert in der
     // angefragten Gruppe landen.
     category: forceCategory ?? idea.category,
+    selected: false,
     createdAt: Date.now(),
   }))
 }

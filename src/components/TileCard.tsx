@@ -21,10 +21,12 @@ export function TileCard({
   tile,
   onDelete,
   onEdit,
+  onToggleSelected,
 }: {
   tile: Tile
   onDelete: (id: string) => void
   onEdit: (tile: Tile) => void
+  onToggleSelected: (id: string) => void
 }) {
   const color = categoryColor(tile.category)
 
@@ -38,7 +40,9 @@ export function TileCard({
         e.dataTransfer.setData('text/plain', tile.id)
         e.dataTransfer.effectAllowed = 'move'
       }}
-      className={`group relative flex cursor-grab flex-col overflow-hidden rounded-[1.5rem] border border-white border-t-4 ${color.accent} ${color.bg} shadow-[0_8px_22px_rgba(91,58,36,0.09)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(91,58,36,0.14)] active:cursor-grabbing`}
+      className={`group relative flex cursor-grab flex-col overflow-hidden rounded-[1.5rem] border border-white border-t-4 ${color.accent} ${
+        tile.selected ? 'ring-2 ring-amber-300 ring-offset-1 ring-offset-white' : ''
+      } ${color.bg} shadow-[0_8px_22px_rgba(91,58,36,0.09)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(91,58,36,0.14)] active:cursor-grabbing`}
     >
       {tile.image && (
         <img
@@ -67,6 +71,20 @@ export function TileCard({
         )}
       </div>
       <div className="absolute right-3 top-3 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleSelected(tile.id)
+          }}
+          title={tile.selected ? 'Als nicht ausgewählt markieren' : 'Als ausgewählt markieren'}
+          aria-label={tile.selected ? 'Als nicht ausgewählt markieren' : 'Als ausgewählt markieren'}
+          className={`h-8 w-8 rounded-full bg-white/90 text-sm leading-none shadow-sm transition hover:bg-white ${
+            tile.selected ? 'text-amber-500 hover:text-amber-600' : 'text-stone-500 hover:text-amber-600'
+          }`}
+        >
+          {tile.selected ? '★' : '☆'}
+        </button>
         <button
           // Die Kachel selbst ist draggable. Interaktionen mit den
           // Aktionsknöpfen dürfen deshalb keinen Drag-Vorgang starten.

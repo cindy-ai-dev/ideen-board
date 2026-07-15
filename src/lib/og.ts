@@ -34,6 +34,7 @@ export async function fetchLinkPreview(url: string, boardId: string): Promise<Ti
     category: 'Links',
     url: json.data.url,
     image: json.data.image?.url,
+    selected: false,
     createdAt: Date.now(),
   }
 }

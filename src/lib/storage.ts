@@ -75,6 +75,7 @@ function normalizeTile(value: unknown, boardId: string): Tile | null {
     category,
     url: typeof value.url === 'string' ? value.url : undefined,
     image: typeof value.image === 'string' ? value.image : undefined,
+    selected: typeof value.selected === 'boolean' ? value.selected : false,
     createdAt: typeof value.createdAt === 'number' ? value.createdAt : Date.now(),
   }
 }

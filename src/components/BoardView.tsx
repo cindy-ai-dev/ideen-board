@@ -102,6 +102,13 @@ export function BoardView({ boardId }: { boardId: string }) {
     setBoard((current) => ({ ...current, tiles: current.tiles.filter((t) => t.id !== id) }))
   }
 
+  function handleToggleSelected(id: string) {
+    setBoard((current) => ({
+      ...current,
+      tiles: current.tiles.map((t) => (t.id === id ? { ...t, selected: !t.selected } : t)),
+    }))
+  }
+
   // Beim Drop: Kachel-ID aus dem dataTransfer holen und die Kategorie
   // der Kachel umschreiben – mehr ist Verschieben nicht.
   function handleDrop(category: string, e: DragEvent) {
@@ -130,6 +137,7 @@ export function BoardView({ boardId }: { boardId: string }) {
         description: values.description || undefined,
         category: values.category,
         image: values.image || undefined,
+        selected: false,
         createdAt: Date.now(),
       }
       setBoard((current) => ({ ...current, tiles: [...current.tiles, tile] }))
@@ -144,6 +152,7 @@ export function BoardView({ boardId }: { boardId: string }) {
                 description: values.description || undefined,
                 category: values.category,
                 image: values.image || undefined,
+                selected: editor.selected,
               }
             : t
         ),
@@ -276,6 +285,7 @@ export function BoardView({ boardId }: { boardId: string }) {
                     tile={tile}
                     onDelete={handleDelete}
                     onEdit={(t) => setEditor(t)}
+                    onToggleSelected={handleToggleSelected}
                   />
                 ))}
               </div>
