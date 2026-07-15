@@ -490,8 +490,9 @@ export function useBoards() {
     setBoards(nextBoards)
     setActiveIdState(boardId)
     ensureLocalBoard(boardId, stateWithToken)
+    let record = localRecord
     try {
-      const record = await saveBoardRemote(boardId, name, stateWithToken)
+      record = await saveBoardRemote(boardId, name, stateWithToken)
       saveLocalBoard(record.id, record.data)
       const nextRegistry = nextBoards.map((board) => (board.id === record.id ? record : board))
       writeRegistryCache(nextRegistry)
@@ -499,6 +500,8 @@ export function useBoards() {
     } catch {
       writeRegistryCache(nextBoards.map(boardMetaFromRecord))
     }
+
+    return record
   }
 
   async function renameBoard(id: string, name: string) {

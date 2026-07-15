@@ -5,7 +5,7 @@ import { BoardPlanView } from './components/BoardPlanView'
 import { GuestRsvpView } from './components/GuestRsvpView'
 import { NameDialog } from './components/NameDialog'
 import { PartyDetailsFields } from './components/PartyDetailsFields'
-import { createEmptyPartyDetails, type PartyDetails } from './types'
+import { createEmptyPartyDetails, type BoardState, type PartyDetails } from './types'
 
 function trimPartyDetails(details: PartyDetails): PartyDetails {
   return {
@@ -29,6 +29,35 @@ function trimPartyDetails(details: PartyDetails): PartyDetails {
         allergies: guest.allergies?.trim() || undefined,
       }))
       .filter((guest) => guest.name),
+  }
+}
+
+function buildDuplicateBoardState(source: BoardState): BoardState {
+  const partyDetails = trimPartyDetails({
+    ...source.partyDetails,
+    date: '',
+    time: '',
+    responseDeadline: '',
+    guests: source.partyDetails.guests.map((guest) => ({
+      ...guest,
+      id: crypto.randomUUID(),
+      status: 'eingeladen',
+      personCount: 1,
+    })),
+  })
+
+  return {
+    topic: source.topic.trim(),
+    partyDetails,
+    tiles: [],
+    shoppingList: source.shoppingList.map((item) => ({
+      ...item,
+      id: crypto.randomUUID(),
+      checked: false,
+    })),
+    planningTasks: [],
+    partySchedule: [],
+    rsvpToken: '',
   }
 }
 
@@ -164,6 +193,7 @@ function HostApp() {
   const [dialog, setDialog] = useState<'new' | 'rename' | null>(null)
   const [newBoardDetails, setNewBoardDetails] = useState<PartyDetails>(createEmptyPartyDetails())
   const [view, setView] = useState<WorkspaceView>(() => getViewFromUrl())
+  const [flashMessage, setFlashMessage] = useState('')
 
   useEffect(() => {
     setViewInUrl(view)
@@ -202,6 +232,17 @@ function HostApp() {
   function openNewBoardDialog() {
     setNewBoardDetails(createEmptyPartyDetails())
     setDialog('new')
+  }
+
+  async function handleDuplicateBoard() {
+    if (!active) return
+    const duplicated = buildDuplicateBoardState(active.data)
+    await createBoard(`${active.name} (Vorlage)`, duplicated)
+    setView('overview')
+    setFlashMessage(
+      'Neues Board erstellt! Du kannst jetzt Datum, Uhrzeit und Details für die neue Party eintragen.'
+    )
+    window.setTimeout(() => setFlashMessage(''), 4500)
   }
 
   return (
@@ -266,6 +307,12 @@ function HostApp() {
         )}
       </section>
 
+      {flashMessage && view !== 'plan' && (
+        <div className="mb-4 rounded-[1.35rem] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-sm">
+          {flashMessage}
+        </div>
+      )}
+
       {/* Board-Leiste: ein Pill pro Board + Verwaltung */}
       <div className={`mb-4 flex flex-wrap items-center gap-2.5 rounded-2xl border border-orange-100 bg-white/65 p-3 shadow-sm backdrop-blur ${view === 'plan' ? 'hidden' : ''}`}>
         {boards.map((b) => (
@@ -321,12 +368,13 @@ function HostApp() {
         )
       ) : (
         active ? (
-          <BoardView
-            key={activeId}
-            boardId={activeId}
-            activeSection={view}
-            onOpenPlan={() => setView('plan')}
-          />
+        <BoardView
+          key={activeId}
+          boardId={activeId}
+          activeSection={view}
+          onOpenPlan={() => setView('plan')}
+          onDuplicateBoard={handleDuplicateBoard}
+        />
         ) : (
           <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
             Lade Boards…

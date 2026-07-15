@@ -220,10 +220,12 @@ export type BoardSection = 'overview' | 'guests' | 'ideas' | 'shopping' | 'timel
 export function BoardView({
   boardId,
   onOpenPlan,
+  onDuplicateBoard,
   activeSection = 'overview',
 }: {
   boardId: string
   onOpenPlan?: () => void
+  onDuplicateBoard?: () => void | Promise<void>
   activeSection?: BoardSection
 }) {
   const [board, setBoard] = useBoard(boardId)
@@ -729,13 +731,23 @@ export function BoardView({
                   : 'Diese Angaben werden gespeichert und als Kontext für die KI genutzt.'}
               </p>
               </div>
-              {showOverview && hasPartyDetails && (
-                <button
-                  onClick={() => setEditingDetails((current) => !current)}
-                  className="rounded-full border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-orange-700 transition hover:bg-orange-50"
-                >
-                  {editingDetails ? 'Zurück' : 'Bearbeiten'}
-                </button>
+              {showOverview && onDuplicateBoard && (
+                <div className="flex flex-wrap gap-2">
+                  {onDuplicateBoard && (
+                    <button
+                      onClick={() => void onDuplicateBoard()}
+                      className="rounded-full border border-amber-200 bg-white px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50"
+                    >
+                      Als Vorlage für neue Party nutzen
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setEditingDetails((current) => !current)}
+                    className="rounded-full border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-orange-700 transition hover:bg-orange-50"
+                  >
+                    {editingDetails ? 'Zurück' : 'Bearbeiten'}
+                  </button>
+                </div>
               )}
             </div>
 
