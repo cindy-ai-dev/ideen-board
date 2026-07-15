@@ -10,7 +10,7 @@ async function parseJson<T>(res: Response): Promise<T> {
 export interface PublicRsvpBoard {
   token: string
   boardId?: string
-  partyDetails: Pick<PartyDetails, 'forWhom' | 'theme' | 'location' | 'date' | 'time'>
+  partyDetails: Pick<PartyDetails, 'forWhom' | 'theme' | 'streetAddress' | 'city' | 'date' | 'time'>
 }
 
 export async function fetchPublicRsvpBoard(token: string, boardId?: string): Promise<PublicRsvpBoard> {

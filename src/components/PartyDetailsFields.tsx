@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { GuestStatus, PartyDetails } from '../types'
+import { formatPartyAddress } from '../lib/location'
+import i18n from '../i18n'
 
 interface Props {
   value: PartyDetails
@@ -44,10 +47,10 @@ function buildCalendarFile(value: PartyDetails): string | null {
     `T${pad(endDate.getHours())}${pad(endDate.getMinutes())}${pad(endDate.getSeconds())}`
 
   const title = escapeIcsText(value.forWhom.trim() || value.theme.trim() || 'Party')
-  const location = escapeIcsText(value.location.trim())
+  const location = escapeIcsText(formatPartyAddress(value.streetAddress, value.city))
   const descriptionParts = [
-    value.theme.trim() ? `Motto: ${value.theme.trim()}` : '',
-    `Gäste: ${value.guestCount ?? 'unbekannt'}`,
+    value.theme.trim() ? `${i18n.t('details.theme')}: ${value.theme.trim()}` : '',
+    `${i18n.t('details.guestCount')}: ${value.guestCount ?? i18n.t('plan.noneSet')}`,
   ]
     .filter(Boolean)
     .join('\\n')
@@ -115,6 +118,7 @@ export function PartyDetailsFields({
   showGuestList = true,
   showCalendar = true,
 }: Props) {
+  const { t } = useTranslation()
   const [guestName, setGuestName] = useState('')
   const [guestAllergies, setGuestAllergies] = useState('')
   const [guestPersonCount, setGuestPersonCount] = useState('1')
@@ -214,46 +218,57 @@ export function PartyDetailsFields({
       {showDetails && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-stone-600">Für wen / Anlass</span>
+            <span className="text-sm font-semibold text-stone-600">{t('details.forWhom')}</span>
             <input
               value={value.forWhom}
               onChange={(e) => updateField('forWhom', e.target.value)}
-              placeholder='z.B. "Geburtstag für Mia, 8 Jahre"'
+              placeholder={t('details.partyNamePlaceholder')}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-stone-600">Motto</span>
+            <span className="text-sm font-semibold text-stone-600">{t('details.theme')}</span>
             <input
               value={value.theme}
               onChange={(e) => updateField('theme', e.target.value)}
-              placeholder="z.B. Pokémon, Piraten, Einhörner (optional)"
+              placeholder={t('details.themePlaceholder')}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-stone-600">Alter</span>
+            <span className="text-sm font-semibold text-stone-600">{t('details.age')}</span>
             <input
               type="number"
               min="1"
               value={formatAge(value.age)}
               onChange={(e) => handleAge(e.target.value)}
-              placeholder="z.B. 8"
+              placeholder={t('details.agePlaceholder')}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
-            <span className="text-xs text-stone-400">Optional, vor allem für Kindergeburtstage.</span>
+            <span className="text-xs text-stone-400">{t('details.ageHint')}</span>
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-stone-600">Ort</span>
+            <span className="text-sm font-semibold text-stone-600">{t('details.streetAddress')}</span>
             <input
-              value={value.location}
-              onChange={(e) => updateField('location', e.target.value)}
-              placeholder="z.B. Zuhause, Park, Restaurant"
+              value={value.streetAddress}
+              onChange={(e) => updateField('streetAddress', e.target.value)}
+              placeholder={t('details.streetPlaceholder')}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
+            <span className="text-xs text-stone-400">{t('details.streetHint')}</span>
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-stone-600">Datum</span>
+            <span className="text-sm font-semibold text-stone-600">{t('details.city')}</span>
+            <input
+              value={value.city}
+              onChange={(e) => updateField('city', e.target.value)}
+              placeholder={t('details.cityPlaceholder')}
+              className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
+            />
+            <span className="text-xs text-stone-400">{t('details.cityHint')}</span>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-semibold text-stone-600">{t('details.date')}</span>
             <input
               type="date"
               value={value.date}
@@ -262,7 +277,7 @@ export function PartyDetailsFields({
             />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-stone-600">Uhrzeit</span>
+            <span className="text-sm font-semibold text-stone-600">{t('details.time')}</span>
             <input
               type="time"
               value={value.time}
@@ -271,47 +286,47 @@ export function PartyDetailsFields({
             />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-stone-600">Gästezahl</span>
+            <span className="text-sm font-semibold text-stone-600">{t('details.guestCount')}</span>
             <input
               type="number"
               min="0"
               value={value.guestCount ?? ''}
               onChange={(e) => handleGuestCount(e.target.value)}
-              placeholder="ca. 12"
+              placeholder={t('details.guestCountPlaceholder')}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-stone-600">Budget-Limit</span>
+            <span className="text-sm font-semibold text-stone-600">{t('details.budgetLimit')}</span>
             <input
               inputMode="decimal"
               value={formatEuroInput(value.budgetLimitEuro)}
               onChange={(e) => handleBudgetLimit(e.target.value)}
-              placeholder="z.B. 50"
+              placeholder={t('details.budgetPlaceholder')}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
-            <span className="text-xs text-stone-400">Optional, in Euro.</span>
+            <span className="text-xs text-stone-400">{t('details.budgetHint')}</span>
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-stone-600">Antwort bis</span>
+            <span className="text-sm font-semibold text-stone-600">{t('details.responseDeadline')}</span>
             <input
               type="date"
               value={value.responseDeadline}
               onChange={(e) => updateField('responseDeadline', e.target.value)}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
-            <span className="text-xs text-stone-400">Optional, wann Gäste spätestens antworten sollen.</span>
+            <span className="text-xs text-stone-400">{t('details.responseDeadlineHint')}</span>
           </label>
           <label className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
-            <span className="text-sm font-semibold text-stone-600">Vorlieben / Besonderheiten</span>
+            <span className="text-sm font-semibold text-stone-600">{t('details.preferences')}</span>
             <textarea
               value={value.preferences}
               onChange={(e) => updateField('preferences', e.target.value)}
-              placeholder="z.B. mag Dinosaurier und Fußball · keine lauten Spiele · liebt Einhörner"
+              placeholder={t('details.preferencesPlaceholder')}
               rows={3}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
-            <span className="text-xs text-stone-400">Optional, mehr Kontext für KI-Ideen und Planung.</span>
+            <span className="text-xs text-stone-400">{t('details.preferencesHint')}</span>
           </label>
         </div>
       )}
@@ -320,9 +335,9 @@ export function PartyDetailsFields({
         <div className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 px-4 py-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-stone-700">Kalender-Termin</p>
+              <p className="text-sm font-semibold text-stone-700">{t('details.calendarTitle')}</p>
               <p className="mt-1 text-sm leading-relaxed text-stone-500">
-                Datum und Uhrzeit eintragen, dann kannst du die Party als `.ics` herunterladen.
+                {t('details.calendarHint')}
               </p>
             </div>
             <button
@@ -330,12 +345,12 @@ export function PartyDetailsFields({
               disabled={!calendarReady}
               className="rounded-2xl bg-amber-500 px-4 py-2.5 font-semibold text-white shadow-sm shadow-amber-200 transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Zum Kalender hinzufügen
+              {t('details.calendarButton')}
             </button>
           </div>
           {!calendarReady && (
             <p className="mt-2 text-xs font-medium text-amber-700">
-              Dafür müssen Datum und Uhrzeit ausgefüllt sein.
+              {t('details.calendarMissing')}
             </p>
           )}
         </div>
@@ -346,10 +361,10 @@ export function PartyDetailsFields({
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
             <div>
               <h3 className="text-sm font-extrabold uppercase tracking-[0.16em] text-orange-600">
-                Gästeliste
+                {t('details.guestListTitle')}
               </h3>
               <p className="mt-1 text-sm leading-relaxed text-stone-500">
-                Namen hinzufügen und den Status direkt mitpflegen.
+                {t('details.guestListHint')}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -358,7 +373,7 @@ export function PartyDetailsFields({
                   onClick={onShareRsvpLink}
                   className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-semibold text-orange-700 transition hover:bg-orange-50"
                 >
-                  {shareLabel ?? 'Gäste-Link kopieren'}
+                  {shareLabel ?? t('details.guestLink')}
                 </button>
               )}
               {onShareRsvpLinkWhatsApp && (
@@ -366,12 +381,12 @@ export function PartyDetailsFields({
                   onClick={onShareRsvpLinkWhatsApp}
                   className="rounded-full border border-green-200 bg-white px-3 py-1 text-xs font-semibold text-green-700 transition hover:bg-green-50"
                 >
-                  {shareWhatsAppLabel ?? 'Per WhatsApp teilen'}
+                  {shareWhatsAppLabel ?? t('details.guestWhatsapp')}
                 </button>
               )}
               {value.guests.length > 0 && (
                 <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-                  {value.guests.length} Einträge
+                  {t('details.guestEntries', { count: value.guests.length })}
                 </span>
               )}
             </div>
@@ -381,7 +396,7 @@ export function PartyDetailsFields({
             <input
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              placeholder="Name hinzufügen"
+              placeholder={t('details.guestNamePlaceholder')}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
             <select
@@ -389,21 +404,21 @@ export function PartyDetailsFields({
               onChange={(e) => setGuestStatus(e.target.value as GuestStatus)}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-700 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             >
-              <option value="eingeladen">eingeladen</option>
-              <option value="zugesagt">zugesagt</option>
-              <option value="abgesagt">abgesagt</option>
+              <option value="eingeladen">{t('details.guestStatusInvited')}</option>
+              <option value="zugesagt">{t('details.guestStatusAccepted')}</option>
+              <option value="abgesagt">{t('details.guestStatusDeclined')}</option>
             </select>
             <button
               onClick={addGuest}
               disabled={!guestName.trim()}
               className="rounded-2xl bg-amber-500 px-4 py-3 font-semibold text-white shadow-sm shadow-amber-200 transition hover:bg-amber-600 disabled:opacity-40"
             >
-              Hinzufügen
+              {t('details.guestAdd')}
             </button>
             <input
               value={guestAllergies}
               onChange={(e) => setGuestAllergies(e.target.value)}
-              placeholder="Allergien / Unverträglichkeiten (optional)"
+              placeholder={t('details.guestAllergiesPlaceholder')}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100 lg:col-span-3"
             />
             <input
@@ -411,13 +426,13 @@ export function PartyDetailsFields({
               min="1"
               value={guestPersonCount}
               onChange={(e) => setGuestPersonCount(e.target.value)}
-              placeholder="Anzahl Personen inkl. dir"
+              placeholder={t('details.guestPersonCountPlaceholder')}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100 lg:col-span-3"
             />
           </div>
 
           {value.guests.length === 0 ? (
-            <p className="mt-4 text-sm text-stone-400">Noch keine Gäste eingetragen.</p>
+            <p className="mt-4 text-sm text-stone-400">{t('details.guestNone')}</p>
           ) : (
             <div className="mt-4 space-y-2">
               {value.guests.map((guest) => (
@@ -428,12 +443,18 @@ export function PartyDetailsFields({
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold text-stone-800">{guest.name}</p>
-                      <p className="mt-0.5 text-xs text-stone-500">
-                        {guest.status}
+                        <p className="mt-0.5 text-xs text-stone-500">
+                        {guest.status === 'zugesagt'
+                          ? t('details.guestStatusAccepted')
+                          : guest.status === 'abgesagt'
+                            ? t('details.guestStatusDeclined')
+                            : t('details.guestStatusInvited')}
                         {guest.status === 'zugesagt' && (
                           <>
-                            {`, ${formatPersonCount(guest.personCount)} Person${
-                              formatPersonCount(guest.personCount) === '1' ? '' : 'en'
+                            {`, ${formatPersonCount(guest.personCount)} ${
+                              formatPersonCount(guest.personCount) === '1'
+                                ? t('details.guestPeopleSingular')
+                                : t('details.guestPeoplePlural')
                             }`}
                           </>
                         )}
@@ -445,9 +466,9 @@ export function PartyDetailsFields({
                         onChange={(e) => updateGuestField(guest.id, 'status', e.target.value)}
                         className="rounded-full border border-orange-100 bg-white px-3 py-1.5 text-sm text-stone-700 outline-none transition focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                       >
-                        <option value="eingeladen">eingeladen</option>
-                        <option value="zugesagt">zugesagt</option>
-                        <option value="abgesagt">abgesagt</option>
+                        <option value="eingeladen">{t('details.guestStatusInvited')}</option>
+                        <option value="zugesagt">{t('details.guestStatusAccepted')}</option>
+                        <option value="abgesagt">{t('details.guestStatusDeclined')}</option>
                       </select>
                       <input
                         type="number"
@@ -455,20 +476,20 @@ export function PartyDetailsFields({
                         value={formatPersonCount(guest.personCount)}
                         onChange={(e) => updateGuestField(guest.id, 'personCount', e.target.value)}
                         className="w-24 rounded-full border border-orange-100 bg-white px-3 py-1.5 text-sm text-stone-700 outline-none transition focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
-                        aria-label={`Personenanzahl für ${guest.name}`}
+                        aria-label={`${guest.name}: ${t('details.guestPersonCountPlaceholder')}`}
                       />
                       <button
                         onClick={() => removeGuest(guest.id)}
                         className="rounded-full px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
                       >
-                        Entfernen
+                        {t('common.remove')}
                       </button>
                     </div>
                   </div>
                   <input
                     value={guest.allergies ?? ''}
                     onChange={(e) => updateGuestField(guest.id, 'allergies', e.target.value)}
-                    placeholder="Allergien / Unverträglichkeiten (optional)"
+                    placeholder={t('details.guestAllergiesPlaceholder')}
                     className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                   />
                 </div>

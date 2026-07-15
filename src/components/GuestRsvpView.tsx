@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { GuestStatus } from '../types'
 import { fetchPublicRsvpBoard, submitRsvp, type PublicRsvpBoard } from '../lib/rsvpApi'
+import { formatPartyAddress } from '../lib/location'
+import i18n from '../i18n'
 
 function formatPartyDate(date: string, time: string): string {
-  if (!date) return 'Ohne Datum'
+  const english = (i18n.resolvedLanguage ?? i18n.language).toLowerCase().startsWith('en')
+  if (!date) return english ? 'No date' : 'Ohne Datum'
   const parsed = new Date(date)
   if (Number.isNaN(parsed.getTime())) return date
-  const datePart = new Intl.DateTimeFormat('de-DE', {
+  const datePart = new Intl.DateTimeFormat(english ? 'en-US' : 'de-DE', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   }).format(parsed)
-  return time ? `${datePart}, ${time} Uhr` : datePart
+  return time ? (english ? `${datePart}, ${time}` : `${datePart}, ${time} Uhr`) : datePart
 }
 
 function escapeCalendarText(value: string): string {
@@ -44,7 +48,7 @@ function buildCalendarDetails(details: NonNullable<PublicRsvpBoard['partyDetails
   if (!start) {
     return {
       title: details.forWhom.trim() || details.theme.trim() || 'Party',
-      location: details.location.trim(),
+      location: formatPartyAddress(details.streetAddress, details.city),
       description: '',
       start: null,
       end: null,
@@ -59,16 +63,18 @@ function buildCalendarDetails(details: NonNullable<PublicRsvpBoard['partyDetails
     `T${pad(endDate.getHours())}${pad(endDate.getMinutes())}${pad(endDate.getSeconds())}`
 
   const description = [
-    details.theme.trim() ? `Motto: ${details.theme.trim()}` : '',
-    details.location.trim() ? `Ort: ${details.location.trim()}` : '',
-    `Zeit: ${formatPartyDate(details.date, details.time)}`,
+    details.theme.trim() ? `${i18n.t('details.theme')}: ${details.theme.trim()}` : '',
+    formatPartyAddress(details.streetAddress, details.city)
+      ? `${i18n.t('rsvp.address')}: ${formatPartyAddress(details.streetAddress, details.city)}`
+      : '',
+    `${i18n.t('rsvp.date')}: ${formatPartyDate(details.date, details.time)}`,
   ]
     .filter(Boolean)
     .join('\n')
 
   return {
     title: details.forWhom.trim() || details.theme.trim() || 'Party',
-    location: details.location.trim(),
+    location: formatPartyAddress(details.streetAddress, details.city),
     description,
     start,
     end,
@@ -127,6 +133,7 @@ function openGoogleCalendar(details: NonNullable<PublicRsvpBoard['partyDetails']
 }
 
 export function GuestRsvpView({ token, boardId }: { token: string; boardId?: string }) {
+  const { t } = useTranslation()
   const [board, setBoard] = useState<PublicRsvpBoard | null>(null)
   const [name, setName] = useState('')
   const [allergies, setAllergies] = useState('')
@@ -138,14 +145,14 @@ export function GuestRsvpView({ token, boardId }: { token: string; boardId?: str
   const [success, setSuccess] = useState<string | null>(null)
 
   useEffect(() => {
-    document.title = 'PartyHost · Einladung'
+    document.title = t('rsvp.heading')
     let cancelled = false
     void (async () => {
       try {
         const result = await fetchPublicRsvpBoard(token, boardId)
         if (!cancelled) setBoard(result)
       } catch {
-        if (!cancelled) setError('Einladungslink konnte nicht geladen werden.')
+        if (!cancelled) setError(t('rsvp.loadError'))
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -154,7 +161,7 @@ export function GuestRsvpView({ token, boardId }: { token: string; boardId?: str
     return () => {
       cancelled = true
     }
-  }, [token, boardId])
+  }, [token, boardId, t])
 
   async function handleSubmit(nextStatus: GuestStatus) {
     const trimmed = name.trim()
@@ -176,11 +183,11 @@ export function GuestRsvpView({ token, boardId }: { token: string; boardId?: str
       setStatus(result.status)
       setSuccess(
         result.status === 'zugesagt'
-          ? `Danke, ${result.name} ist jetzt als zugesagt eingetragen.`
-          : `Danke, ${result.name} ist jetzt als abgesagt eingetragen.`
+          ? t('rsvp.savedAccepted', { name: result.name })
+          : t('rsvp.savedDeclined', { name: result.name })
       )
     } catch {
-      setError('Deine Antwort konnte gerade nicht gespeichert werden.')
+      setError(t('rsvp.saveError'))
     } finally {
       setSaving(false)
     }
@@ -193,54 +200,56 @@ export function GuestRsvpView({ token, boardId }: { token: string; boardId?: str
     <div className="min-h-screen px-4 py-8 sm:px-6 sm:py-10">
       <div className="mx-auto flex max-w-xl flex-col gap-5">
         <header className="rounded-[2rem] border border-white/80 bg-white/80 p-6 shadow-[0_12px_35px_rgba(119,75,43,0.10)] backdrop-blur">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">Einladung</p>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">{t('rsvp.title')}</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-stone-800">
             {details?.forWhom || 'Party'}
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-stone-500">
-            Hier kannst du deine Teilnahme an- oder abmelden. Nur die Gastgeberin sieht die
-            Rückmeldung im Haupt-Board.
+            {t('rsvp.intro')}
           </p>
         </header>
 
         <section className="rounded-[1.75rem] border border-orange-100 bg-white/85 p-5 shadow-[0_12px_35px_rgba(119,75,43,0.08)]">
           {loading ? (
-            <p className="text-sm text-stone-500">Lade Einladung …</p>
+            <p className="text-sm text-stone-500">{t('rsvp.loading')}</p>
           ) : error ? (
             <p className="text-sm font-medium text-rose-700">{error}</p>
           ) : details ? (
             <div className="space-y-4">
-              <InfoRow label="Motto" value={details.theme || 'Keins gesetzt'} />
-              <InfoRow label="Ort" value={details.location || 'Nicht gesetzt'} />
-              <InfoRow label="Datum" value={formatPartyDate(details.date, details.time)} />
+              <InfoRow label={t('rsvp.motto')} value={details.theme || t('boards.mottoFallback')} />
+              <InfoRow
+                label={t('rsvp.address')}
+                value={formatPartyAddress(details.streetAddress, details.city) || t('plan.noneSet')}
+              />
+              <InfoRow label={t('rsvp.date')} value={formatPartyDate(details.date, details.time)} />
 
               <div className="rounded-[1.35rem] border border-orange-100 bg-orange-50/60 p-4">
                 <label className="mb-2 block text-sm font-semibold text-stone-700">
-                  Dein Name
+                  {t('rsvp.yourName')}
                 </label>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Vor- und Nachname"
+                  placeholder={t('rsvp.yourName')}
                   className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                 />
               </div>
 
               <div className="rounded-[1.35rem] border border-orange-100 bg-orange-50/60 p-4">
                 <label className="mb-2 block text-sm font-semibold text-stone-700">
-                  Allergien / Unverträglichkeiten
+                  {t('rsvp.allergies')}
                 </label>
                 <input
                   value={allergies}
                   onChange={(e) => setAllergies(e.target.value)}
-                  placeholder="Optional, z. B. Nussallergie, vegan"
+                  placeholder={t('rsvp.allergies')}
                   className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                 />
               </div>
 
               <div className="rounded-[1.35rem] border border-orange-100 bg-orange-50/60 p-4">
                 <label className="mb-2 block text-sm font-semibold text-stone-700">
-                  Anzahl Personen
+                  {t('rsvp.personCount')}
                 </label>
                 <input
                   type="number"
@@ -251,7 +260,7 @@ export function GuestRsvpView({ token, boardId }: { token: string; boardId?: str
                   className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                 />
                 <p className="mt-2 text-xs font-medium text-stone-400">
-                  Wie viele Personen inkl. dir kommen?
+                  {t('rsvp.personCountHint')}
                 </p>
               </div>
 
@@ -261,47 +270,47 @@ export function GuestRsvpView({ token, boardId }: { token: string; boardId?: str
                   disabled={saving || !name.trim()}
                   className="rounded-2xl bg-orange-500 px-4 py-3 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:opacity-40"
                 >
-                  Ich sage zu
+                  {t('rsvp.attendance')}
                 </button>
                 <button
                   onClick={() => void handleSubmit('abgesagt')}
                   disabled={saving || !name.trim()}
                   className="rounded-2xl border border-rose-200 bg-white px-4 py-3 font-semibold text-rose-700 shadow-sm transition hover:bg-rose-50 disabled:opacity-40"
                 >
-                  Ich sage ab
+                  {t('rsvp.noAttendance')}
                 </button>
               </div>
 
               {success && (
                 <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                  {success} Der Status wurde im Haupt-Board gespeichert.
+                  {success}
                 </p>
               )}
               {canAddCalendar && details && (
                 <div className="rounded-[1.4rem] border border-amber-100 bg-amber-50/70 p-4">
-                  <p className="text-sm font-semibold text-stone-700">Zum Kalender hinzufügen</p>
+                  <p className="text-sm font-semibold text-stone-700">{t('rsvp.calendarTitle')}</p>
                   <p className="mt-1 text-sm leading-relaxed text-stone-500">
-                    Die Einladung kannst du jetzt direkt in deinen Kalender übernehmen.
+                    {t('rsvp.calendarHint')}
                   </p>
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                     <button
                       onClick={() => openGoogleCalendar(details)}
                       className="rounded-2xl bg-amber-500 px-4 py-3 font-semibold text-white shadow-sm shadow-amber-200 transition hover:bg-amber-600"
                     >
-                      Zu Google Kalender hinzufügen
+                      {t('rsvp.googleCalendar')}
                     </button>
                     <button
                       onClick={() => downloadIcs(details)}
                       className="rounded-2xl border border-amber-200 bg-white px-4 py-3 font-semibold text-amber-700 shadow-sm transition hover:bg-amber-50"
                     >
-                      Zu Apple/Outlook Kalender hinzufügen
+                      {t('rsvp.appleCalendar')}
                     </button>
                   </div>
                 </div>
               )}
               {status && !success && name.trim() && (
                 <p className="text-xs font-medium text-stone-500">
-                  Aktueller Status zum Namen „{name.trim()}“: {status}.
+                  {t('rsvp.currentStatus', { name: name.trim(), status })}
                 </p>
               )}
             </div>

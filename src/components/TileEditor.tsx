@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Tile } from '../types'
 
 // Ein Formular für beides: neue eigene Kachel anlegen UND bestehende
@@ -16,9 +17,10 @@ interface Props {
 }
 
 export function TileEditor({ tile, categories, onSave, onClose }: Props) {
+  const { t } = useTranslation()
   const [title, setTitle] = useState(tile?.title ?? '')
   const [description, setDescription] = useState(tile?.description ?? '')
-  const [category, setCategory] = useState(tile?.category ?? categories[0] ?? 'Eigene Ideen')
+  const [category, setCategory] = useState(tile?.category ?? categories[0] ?? t('dialog.ownIdeas'))
   const [image, setImage] = useState(tile?.image ?? '')
 
   function handleSave() {
@@ -26,7 +28,7 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
     onSave({
       title: title.trim(),
       description: description.trim(),
-      category: category.trim() || 'Eigene Ideen',
+      category: category.trim() || t('dialog.ownIdeas'),
       image: image.trim(),
     })
   }
@@ -41,11 +43,11 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl font-extrabold tracking-tight text-stone-800">
-          {tile ? 'Kachel bearbeiten' : 'Eigene Idee hinzufügen'}
+          {tile ? t('dialog.tileEditTitle') : t('dialog.tileNewTitle')}
         </h2>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-stone-600">Titel</span>
+          <span className="text-sm font-medium text-stone-600">{t('dialog.title')}</span>
           <input
             autoFocus
             value={title}
@@ -56,7 +58,7 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-stone-600">Notiz (optional)</span>
+          <span className="text-sm font-medium text-stone-600">{t('dialog.note')}</span>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -66,7 +68,7 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-stone-600">Kategorie</span>
+          <span className="text-sm font-medium text-stone-600">{t('dialog.category')}</span>
           {/* datalist = Freitext MIT Vorschlägen: bestehende Kategorie wählen
               oder einfach eine neue eintippen */}
           <input
@@ -83,11 +85,11 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-stone-600">Bild-Link (optional)</span>
+          <span className="text-sm font-medium text-stone-600">{t('dialog.imageLink')}</span>
           <input
             value={image}
             onChange={(e) => setImage(e.target.value)}
-            placeholder="https://… (z.B. Rechtsklick auf ein Bild → Bildadresse kopieren)"
+            placeholder={t('dialog.imageLink')}
             className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-2.5 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
           />
           {/* Live-Vorschau, damit man sofort sieht, ob der Link ein Bild ist */}
@@ -107,14 +109,14 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
             onClick={onClose}
             className="rounded-2xl px-4 py-2.5 font-medium text-stone-600 transition hover:bg-stone-100"
           >
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button
-            onClick={handleSave}
-            disabled={!title.trim()}
-            className="rounded-2xl bg-orange-500 px-5 py-2.5 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:opacity-40"
-          >
-            Speichern
+          onClick={handleSave}
+          disabled={!title.trim()}
+          className="rounded-2xl bg-orange-500 px-5 py-2.5 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:opacity-40"
+        >
+            {t('common.save')}
           </button>
         </div>
       </div>

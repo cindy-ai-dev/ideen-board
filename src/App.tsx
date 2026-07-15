@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useBoards } from './lib/storage'
 import { BoardView, type BoardSection } from './components/BoardView'
 import { BoardPlanView } from './components/BoardPlanView'
@@ -6,6 +7,8 @@ import { GuestRsvpView } from './components/GuestRsvpView'
 import { NameDialog } from './components/NameDialog'
 import { PartyDetailsFields } from './components/PartyDetailsFields'
 import { createEmptyPartyDetails, type BoardState, type PartyDetails } from './types'
+import { formatPartyAddress } from './lib/location'
+import i18n from './i18n'
 
 function trimPartyDetails(details: PartyDetails): PartyDetails {
   return {
@@ -17,7 +20,8 @@ function trimPartyDetails(details: PartyDetails): PartyDetails {
       : null,
     preferences: details.preferences.trim(),
     responseDeadline: details.responseDeadline.trim(),
-    location: details.location.trim(),
+    streetAddress: details.streetAddress.trim(),
+    city: details.city.trim(),
     date: details.date,
     time: details.time,
     guestCount: typeof details.guestCount === 'number' ? details.guestCount : null,
@@ -70,29 +74,20 @@ function parsePartyDate(details: PartyDetails): number {
 }
 
 function formatPartyDate(details: PartyDetails): string {
-  if (!details.date) return 'Ohne Datum'
+  const english = (i18n.resolvedLanguage ?? i18n.language).toLowerCase().startsWith('en')
+  if (!details.date) return english ? 'No date' : 'Ohne Datum'
   const date = new Date(details.date)
   if (Number.isNaN(date.getTime())) return details.date
-  const datePart = new Intl.DateTimeFormat('de-DE', {
+  const datePart = new Intl.DateTimeFormat(english ? 'en-US' : 'de-DE', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   }).format(date)
   if (!details.time) return datePart
-  return `${datePart}, ${details.time} Uhr`
+  return english ? `${datePart}, ${details.time}` : `${datePart}, ${details.time} Uhr`
 }
 
 type WorkspaceView = BoardSection | 'plan'
-
-const VIEW_LABELS: Record<WorkspaceView, string> = {
-  overview: 'Übersicht',
-  guests: 'Gästeliste',
-  ideas: 'Ideen',
-  shopping: 'Einkaufsliste',
-  timeline: 'Zeitstrahl',
-  schedule: 'Ablaufplan',
-  plan: 'Gesamtplan',
-}
 
 const VIEW_ORDER: WorkspaceView[] = ['overview', 'guests', 'ideas', 'shopping', 'timeline', 'schedule', 'plan']
 
@@ -130,6 +125,17 @@ function BoardAreaNav({
   view: WorkspaceView
   onChange: (next: WorkspaceView) => void
 }) {
+  const { t } = useTranslation()
+  const labels: Record<WorkspaceView, string> = {
+    overview: t('navigation.overview'),
+    guests: t('navigation.guests'),
+    ideas: t('navigation.ideas'),
+    shopping: t('navigation.shopping'),
+    timeline: t('navigation.timeline'),
+    schedule: t('navigation.schedule'),
+    plan: t('navigation.plan'),
+  }
+
   return (
     <>
       <div className="hidden lg:block">
@@ -145,7 +151,7 @@ function BoardAreaNav({
                     : 'bg-white/60 text-stone-600 hover:bg-orange-50 hover:text-orange-700'
                 }`}
               >
-                {VIEW_LABELS[item]}
+                {labels[item]}
               </button>
             ))}
           </div>
@@ -164,7 +170,7 @@ function BoardAreaNav({
                     : 'bg-orange-50 text-stone-600'
                 }`}
               >
-                {VIEW_LABELS[item]}
+                {labels[item]}
               </button>
             ))}
           </div>
@@ -190,6 +196,7 @@ function getRsvpBoardIdFromUrl(): string | null {
 }
 
 function HostApp() {
+  const { t } = useTranslation()
   const { boards, activeId, setActiveId, createBoard, renameBoard, removeBoard } = useBoards()
   const [dialog, setDialog] = useState<'new' | 'rename' | null>(null)
   const [newBoardDetails, setNewBoardDetails] = useState<PartyDetails>(createEmptyPartyDetails())
@@ -224,9 +231,7 @@ function HostApp() {
 
   function handleDeleteBoard() {
     if (!active) return
-    const ok = window.confirm(
-      `Board "${active.name}" wirklich löschen? Alle Kacheln darauf gehen verloren.`
-    )
+    const ok = window.confirm(t('boards.deleteConfirm', { name: active.name }))
     if (ok) removeBoard(active.id)
   }
 
@@ -240,40 +245,32 @@ function HostApp() {
     const duplicated = buildDuplicateBoardState(active.data)
     await createBoard(`${active.name} (Vorlage)`, duplicated)
     setView('overview')
-    setFlashMessage(
-      'Neues Board erstellt! Du kannst jetzt Datum, Uhrzeit und Details für die neue Party eintragen.'
-    )
+    setFlashMessage(t('boards.createdTemplate'))
     window.setTimeout(() => setFlashMessage(''), 4500)
   }
 
   return (
     <div className="min-h-screen max-w-7xl mx-auto px-4 py-6 pb-28 sm:px-6 sm:py-10 lg:px-8 lg:pb-10">
       <header className={`mb-7 rounded-[2rem] border border-white/80 bg-white/75 px-6 py-7 shadow-[0_12px_40px_rgba(119,75,43,0.10)] backdrop-blur sm:px-9 sm:py-8 ${view === 'plan' ? 'hidden' : ''}`}>
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-orange-500">Planen · Sammeln · Feiern</p>
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-orange-500">{t('app.slogan')}</p>
         <h1 className="text-4xl font-extrabold tracking-tight text-stone-800 sm:text-5xl">PartyHost</h1>
-        <p className="mt-3 max-w-xl text-base leading-relaxed text-stone-500">
-          Party-Details festhalten, KI-Ideen generieren und Links sammeln.
-        </p>
+        <p className="mt-3 max-w-xl text-base leading-relaxed text-stone-500">{t('app.description')}</p>
       </header>
 
       <section className={`mb-8 rounded-[1.85rem] border border-orange-100 bg-white/75 p-5 shadow-[0_12px_35px_rgba(119,75,43,0.08)] backdrop-blur ${view === 'plan' ? 'hidden' : ''}`}>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">
-              Board-Übersicht
-            </p>
-            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800">
-              Alle Partys nach Datum sortiert
-            </h2>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">{t('boards.overviewTitle')}</p>
+            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800">{t('boards.sortedByDate')}</h2>
           </div>
           <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-            {boardSummaries.length} Boards
+            {t('boards.count', { count: boardSummaries.length })}
           </span>
         </div>
 
         {boardSummaries.length === 0 ? (
           <div className="rounded-[1.4rem] border border-dashed border-orange-200 bg-white/70 px-4 py-10 text-center text-stone-400">
-            Noch keine Boards geladen.
+            {t('boards.none')}
           </div>
         ) : (
           <div className="space-y-2">
@@ -294,12 +291,12 @@ function HostApp() {
                       {details.forWhom || meta.name}
                     </p>
                     <p className="mt-1 text-sm text-stone-500">
-                      {details.theme ? `Motto: ${details.theme}` : 'Kein Motto gesetzt'}
+                      {details.theme ? `${t('details.theme')}: ${details.theme}` : t('boards.mottoFallback')}
                     </p>
                   </div>
                   <div className="flex flex-col gap-1 text-sm text-stone-500 sm:text-right">
                     <span className="font-medium text-stone-700">{formatPartyDate(details)}</span>
-                    <span>{details.location || 'Ort offen'}</span>
+                    <span>{formatPartyAddress(details.streetAddress, details.city) || t('boards.dateFallback')}</span>
                   </div>
                 </button>
               )
@@ -331,25 +328,25 @@ function HostApp() {
         ))}
         <button
           onClick={openNewBoardDialog}
-          title="Neues Board anlegen"
+          title={t('boards.newBoard')}
           className="rounded-full border-2 border-dashed border-orange-200 px-4 py-1.5 text-sm font-semibold text-orange-600 transition-colors hover:border-orange-400 hover:bg-orange-50"
         >
-          ＋ Board
+          {t('boards.newBoard')}
         </button>
         <span className="mx-1 text-orange-200">|</span>
         <button
           onClick={() => setDialog('rename')}
-          title="Aktives Board umbenennen"
+          title={t('boards.editTitle')}
           className="text-sm font-medium text-stone-400 transition-colors hover:text-orange-700"
         >
-          ✎ umbenennen
+          {t('boards.renameShort')}
         </button>
         <button
           onClick={handleDeleteBoard}
-          title="Aktives Board löschen"
+          title={t('boards.deleteShort')}
           className="text-sm font-medium text-stone-400 transition-colors hover:text-rose-600"
         >
-          🗑 löschen
+          {t('boards.deleteShort')}
         </button>
       </div>
 
@@ -364,7 +361,7 @@ function HostApp() {
           />
         ) : (
           <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
-            Lade Boards…
+            {t('boards.loading')}
           </div>
         )
       ) : (
@@ -378,7 +375,7 @@ function HostApp() {
         />
         ) : (
           <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
-            Lade Boards…
+            {t('boards.loading')}
           </div>
         )
       )}
@@ -394,14 +391,13 @@ function HostApp() {
           >
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-orange-500">
-                Neues Board
+                {t('boards.newTitle')}
               </p>
               <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800">
-                Party-Details anlegen
+                {t('boards.boardTitle')}
               </h2>
                 <p className="mt-2 text-sm leading-relaxed text-stone-500">
-                Das Board bekommt seinen Namen aus dem Feld „Für wen / Anlass“. Die Angaben
-                werden gespeichert und als Kontext für die Ideen-Generierung verwendet.
+                {t('boards.boardDescription')}
               </p>
             </div>
             <PartyDetailsFields value={newBoardDetails} onChange={setNewBoardDetails} />
@@ -410,7 +406,7 @@ function HostApp() {
                 onClick={() => setDialog(null)}
                 className="rounded-2xl px-4 py-2.5 font-medium text-stone-600 transition hover:bg-stone-100"
               >
-                Abbrechen
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => {
@@ -430,7 +426,7 @@ function HostApp() {
                 disabled={!newBoardDetails.forWhom.trim()}
                 className="rounded-2xl bg-orange-500 px-5 py-2.5 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:opacity-40"
               >
-                Board anlegen
+                {t('boards.create')}
               </button>
             </div>
           </div>
@@ -438,7 +434,7 @@ function HostApp() {
       )}
       {dialog === 'rename' && (
         <NameDialog
-          title="Board umbenennen"
+          title={t('boards.editTitle')}
           initial={active?.name ?? ''}
           onSave={(name) => {
             if (active) renameBoard(active.id, name)
@@ -454,8 +450,38 @@ function HostApp() {
 export default function App() {
   const rsvpToken = getRsvpTokenFromUrl()
   const rsvpBoardId = getRsvpBoardIdFromUrl()
-  if (rsvpToken) {
-    return <GuestRsvpView token={rsvpToken} boardId={rsvpBoardId ?? undefined} />
-  }
-  return <HostApp />
+  return (
+    <>
+      <LanguageToggle />
+      {rsvpToken ? <GuestRsvpView token={rsvpToken} boardId={rsvpBoardId ?? undefined} /> : <HostApp />}
+    </>
+  )
+}
+
+function LanguageToggle() {
+  const { t } = useTranslation()
+  const current = i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'de'
+
+  return (
+    <div className="fixed right-4 top-4 z-50">
+      <div className="flex items-center rounded-full border border-orange-100 bg-white/90 p-1 shadow-[0_8px_24px_rgba(119,75,43,0.12)] backdrop-blur">
+        <button
+          onClick={() => void i18n.changeLanguage('de')}
+          className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+            current === 'de' ? 'bg-orange-500 text-white' : 'text-stone-500 hover:text-orange-700'
+          }`}
+        >
+          {t('language.de')}
+        </button>
+        <button
+          onClick={() => void i18n.changeLanguage('en')}
+          className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+            current === 'en' ? 'bg-orange-500 text-white' : 'text-stone-500 hover:text-orange-700'
+          }`}
+        >
+          {t('language.en')}
+        </button>
+      </div>
+    </div>
+  )
 }

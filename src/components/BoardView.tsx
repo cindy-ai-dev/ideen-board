@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { PartyDetails, Tile } from '../types'
 import { useBoard } from '../lib/storage'
 import { saveBoard as saveBoardRemote } from '../lib/boardApi'
@@ -10,9 +11,11 @@ import {
   generateShoppingList,
 } from '../lib/claude'
 import { fetchLinkPreview } from '../lib/og'
-import { summarizePartyDetails } from '../lib/prompts'
+import { formatPartyAddress } from '../lib/location'
+import i18n from '../i18n'
 import { TileCard, categoryColor } from './TileCard'
 import { TileEditor } from './TileEditor'
+import { WeatherForecastCard } from './WeatherForecastCard'
 import { PartyDetailsFields } from './PartyDetailsFields'
 import { PartyScheduleSection } from './PartyScheduleSection'
 import { ShoppingListSection } from './ShoppingListSection'
@@ -30,7 +33,8 @@ function isPartyDetailsEmpty(details: PartyDetails): boolean {
     details.theme.trim() ||
     details.age !== null ||
     details.preferences.trim() ||
-    details.location.trim() ||
+    details.streetAddress.trim() ||
+    details.city.trim() ||
     details.date ||
     details.time ||
     details.guestCount !== null ||
@@ -43,7 +47,8 @@ function formatResponseDeadline(value: string): string | null {
   if (!value) return null
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
-  return new Intl.DateTimeFormat('de-DE', {
+  const english = (i18n.resolvedLanguage ?? i18n.language).toLowerCase().startsWith('en')
+  return new Intl.DateTimeFormat(english ? 'en-US' : 'de-DE', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -61,22 +66,24 @@ function isDeadlineExpired(value: string): boolean {
 }
 
 function formatPartyDate(date: string, time: string): string {
-  if (!date) return 'Ohne Datum'
+  const english = (i18n.resolvedLanguage ?? i18n.language).toLowerCase().startsWith('en')
+  if (!date) return english ? 'No date' : 'Ohne Datum'
   const parsed = new Date(date)
   if (Number.isNaN(parsed.getTime())) return date
-  const datePart = new Intl.DateTimeFormat('de-DE', {
+  const datePart = new Intl.DateTimeFormat(english ? 'en-US' : 'de-DE', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   }).format(parsed)
-  return time ? `${datePart}, ${time} Uhr` : datePart
+  return time ? (english ? `${datePart}, ${time}` : `${datePart}, ${time} Uhr`) : datePart
 }
 
 function formatDeadline(value: string): string | null {
   if (!value) return null
   const parsed = new Date(`${value}T12:00:00`)
   if (Number.isNaN(parsed.getTime())) return value
-  return new Intl.DateTimeFormat('de-DE', {
+  const english = (i18n.resolvedLanguage ?? i18n.language).toLowerCase().startsWith('en')
+  return new Intl.DateTimeFormat(english ? 'en-US' : 'de-DE', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -86,29 +93,34 @@ function formatDeadline(value: string): string | null {
 function buildGuestReminderText(options: {
   partyName: string
   partyDate: string
+  partyAddress?: string
   responseDeadline?: string
   rsvpUrl: string
 }): string {
-  const intro = `Hey! Nicht vergessen: RSVP für ${options.partyName} am ${options.partyDate}.`
-  const deadline = options.responseDeadline ? ` (Antwort bis ${options.responseDeadline})` : ''
-  return `${intro}${deadline} Sag uns Bescheid, ob du kommst: ${options.rsvpUrl}`
+  const addressText = options.partyAddress ? i18n.t('overview.reminderAddress', { partyAddress: options.partyAddress }) : ''
+  const deadlineText = options.responseDeadline ? i18n.t('overview.reminderDeadline', { deadline: options.responseDeadline }) : ''
+  return i18n.t('overview.reminderText', {
+    partyName: options.partyName,
+    partyDate: options.partyDate,
+    addressText,
+    deadlineText,
+    rsvpUrl: options.rsvpUrl,
+  })
 }
 
 function buildRsvpShareText(options: {
   partyName: string
   partyDate: string
+  partyAddress?: string
   rsvpUrl: string
 }): string {
-  return `Hey! Du bist eingeladen zu ${options.partyName} am ${options.partyDate}. Sag uns Bescheid, ob du kommst: ${options.rsvpUrl}`
-}
-
-function splitSummaryLine(line: string): { label: string; value: string } {
-  const idx = line.indexOf(':')
-  if (idx < 0) return { label: line, value: '' }
-  return {
-    label: line.slice(0, idx).trim(),
-    value: line.slice(idx + 1).trim(),
-  }
+  const addressText = options.partyAddress ? i18n.t('overview.reminderAddress', { partyAddress: options.partyAddress }) : ''
+  return i18n.t('overview.rsvpShareText', {
+    partyName: options.partyName,
+    partyDate: options.partyDate,
+    addressText,
+    rsvpUrl: options.rsvpUrl,
+  })
 }
 
 function normalizePrice(price: number | string | null | undefined): number | null {
@@ -245,6 +257,7 @@ export function BoardView({
   onDuplicateBoard?: () => void | Promise<void>
   activeSection?: BoardSection
 }) {
+  const { t } = useTranslation()
   const [board, setBoard] = useBoard(boardId)
   const [urlInput, setUrlInput] = useState('')
   const [loadingIdeas, setLoadingIdeas] = useState(false)
@@ -252,7 +265,10 @@ export function BoardView({
   const [loadingShopping, setLoadingShopping] = useState(false)
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [loadingSchedule, setLoadingSchedule] = useState(false)
-  const [scheduleBackupOpen, setScheduleBackupOpen] = useState(false)
+  const [scheduleBackupOpen, setScheduleBackupOpen] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.location.hash === '#backup-plan'
+  })
   const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
   const [reminderOpen, setReminderOpen] = useState(false)
   const [reminderCopyState, setReminderCopyState] = useState<'idle' | 'copied'>('idle')
@@ -319,9 +335,11 @@ export function BoardView({
   function buildRsvpShareTextForBoard() {
     const partyName = board.partyDetails.forWhom.trim() || board.topic.trim() || 'deiner Party'
     const partyDate = formatPartyDate(board.partyDetails.date, board.partyDetails.time)
+    const partyAddress = formatPartyAddress(board.partyDetails.streetAddress, board.partyDetails.city)
     return buildRsvpShareText({
       partyName,
       partyDate,
+      partyAddress,
       rsvpUrl: buildRsvpUrl(),
     })
   }
@@ -330,10 +348,12 @@ export function BoardView({
     const token = ensureRsvpToken()
     const partyName = board.partyDetails.forWhom.trim() || board.topic.trim() || 'deine Party'
     const partyDate = formatPartyDate(board.partyDetails.date, board.partyDetails.time)
+    const partyAddress = formatPartyAddress(board.partyDetails.streetAddress, board.partyDetails.city)
     const deadline = formatDeadline(board.partyDetails.responseDeadline) ?? undefined
     const text = buildGuestReminderText({
       partyName,
       partyDate,
+      partyAddress: partyAddress || undefined,
       responseDeadline: deadline,
       rsvpUrl: `${window.location.origin}${window.location.pathname}?rsvp=${encodeURIComponent(token)}&board=${encodeURIComponent(boardId)}`,
     })
@@ -354,7 +374,7 @@ export function BoardView({
         tiles: [...current.tiles, ...ideas],
       }))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ideen konnten nicht geladen werden')
+      setError(e instanceof Error ? e.message : t('ideas.ideasError'))
     } finally {
       setLoadingIdeas(false)
     }
@@ -374,7 +394,7 @@ export function BoardView({
         tiles: [...current.tiles, ...ideas],
       }))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ideen konnten nicht geladen werden')
+      setError(e instanceof Error ? e.message : t('ideas.ideasError'))
     } finally {
       setLoadingMore(null)
     }
@@ -391,7 +411,7 @@ export function BoardView({
       setBoard((current) => ({ ...current, tiles: [...current.tiles, tile] }))
       setUrlInput('')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Link konnte nicht geladen werden')
+      setError(e instanceof Error ? e.message : t('ideas.linkError'))
     } finally {
       setLoadingLink(false)
     }
@@ -408,7 +428,7 @@ export function BoardView({
         shareTimerRef.current = null
       }, 1800)
     } catch {
-      window.prompt('Gäste-Link kopieren', url)
+      window.prompt(t('overview.overviewGuestLink'), url)
       setShareState('copied')
       if (shareTimerRef.current !== null) window.clearTimeout(shareTimerRef.current)
       shareTimerRef.current = window.setTimeout(() => {
@@ -428,7 +448,7 @@ export function BoardView({
         reminderTimerRef.current = null
       }, 1800)
     } catch {
-      window.prompt('Erinnerungstext kopieren', text)
+      window.prompt(t('overview.reminderCopy'), text)
       setReminderCopyState('copied')
       if (reminderTimerRef.current !== null) window.clearTimeout(reminderTimerRef.current)
       reminderTimerRef.current = window.setTimeout(() => {
@@ -458,7 +478,7 @@ export function BoardView({
       }))
 
     if (selectedTiles.length === 0) {
-      setError('Markiere zuerst einige Ideen als ausgewählt, damit daraus eine Einkaufsliste erzeugt werden kann.')
+      setError(t('shopping.selectedHint'))
       return
     }
 
@@ -471,7 +491,7 @@ export function BoardView({
         shoppingList: mergeShoppingSuggestions(current.shoppingList, suggestions),
       }))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Einkaufsliste konnte nicht geladen werden')
+      setError(e instanceof Error ? e.message : t('shopping.loadError'))
     } finally {
       setLoadingShopping(false)
     }
@@ -488,7 +508,7 @@ export function BoardView({
       }))
 
     if (selectedTiles.length === 0) {
-      setError('Markiere zuerst einige Ideen als ausgewählt, damit daraus ein Zeitplan erzeugt werden kann.')
+      setError(t('timeline.selectFirst'))
       return
     }
 
@@ -501,7 +521,7 @@ export function BoardView({
         planningTasks: mergePlanningSuggestions(current.planningTasks, tasks),
       }))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Zeitplan konnte nicht geladen werden')
+      setError(e instanceof Error ? e.message : t('timeline.loadError'))
     } finally {
       setLoadingTasks(false)
     }
@@ -532,7 +552,7 @@ export function BoardView({
         partyScheduleBackup: mergeScheduleSuggestions(current.partyScheduleBackup, backupItems),
       }))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ablaufplan konnte nicht geladen werden')
+      setError(e instanceof Error ? e.message : t('schedule.loadError'))
     } finally {
       setLoadingSchedule(false)
     }
@@ -729,14 +749,12 @@ export function BoardView({
     setEditor(null)
   }
 
-  const partySummary = summarizePartyDetails(board.partyDetails)
   const showOverview = activeSection === 'overview'
   const showGuests = activeSection === 'guests'
   const showIdeas = activeSection === 'ideas'
   const showShopping = activeSection === 'shopping'
   const showTimeline = activeSection === 'timeline'
   const showSchedule = activeSection === 'schedule'
-  const summaryLines = partySummary ? partySummary.split('\n').filter(Boolean) : []
   const hasPartyDetails = !isPartyDetailsEmpty(board.partyDetails)
   const showDetailsEditor = showOverview && (editingDetails || !hasPartyDetails)
   const showSummary = showOverview && hasPartyDetails && !editingDetails
@@ -747,10 +765,60 @@ export function BoardView({
   const responseDeadlineLabel = formatResponseDeadline(board.partyDetails.responseDeadline)
   const responseDeadlineExpired = isDeadlineExpired(board.partyDetails.responseDeadline)
   const canPrepareReminder = pendingGuests.length > 0
+  const english = (i18n.resolvedLanguage ?? i18n.language).toLowerCase().startsWith('en')
+  const currencyFormatter = new Intl.NumberFormat(english ? 'en-US' : 'de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 2,
+  })
+  const summaryCards = useMemo(() => {
+    const details = board.partyDetails
+    const cards: Array<{ label: string; value: string }> = []
+    if (details.forWhom.trim()) cards.push({ label: t('details.forWhom'), value: details.forWhom.trim() })
+    if (details.theme.trim()) cards.push({ label: t('details.theme'), value: details.theme.trim() })
+    if (typeof details.age === 'number' && details.age > 0) {
+      cards.push({
+        label: t('details.age'),
+        value: `${Math.round(details.age)} ${english ? 'years' : 'Jahre'}`,
+      })
+    }
+    const address = formatPartyAddress(details.streetAddress, details.city)
+    if (address) cards.push({ label: `${t('details.streetAddress')} / ${t('details.city')}`, value: address })
+    if (details.date || details.time) {
+      cards.push({ label: `${t('details.date')} / ${t('details.time')}`, value: formatPartyDate(details.date, details.time) })
+    }
+    if (details.guestCount !== null) {
+      cards.push({
+        label: t('details.guestCount'),
+        value: String(details.guestCount),
+      })
+    }
+    if (details.budgetLimitEuro !== null) {
+      cards.push({
+        label: t('details.budgetLimit'),
+        value: currencyFormatter.format(details.budgetLimitEuro),
+      })
+    }
+    if (details.responseDeadline.trim()) {
+      cards.push({ label: t('details.responseDeadline'), value: formatResponseDeadline(details.responseDeadline) ?? details.responseDeadline })
+    }
+    if (details.preferences.trim()) {
+      cards.push({ label: t('details.preferences'), value: details.preferences.trim() })
+    }
+    return cards
+  }, [board.partyDetails, currencyFormatter, english, t])
 
   useEffect(() => {
     if (!showOverview) setEditingDetails(false)
   }, [showOverview])
+
+  useEffect(() => {
+    if (!showSchedule) return
+    if (typeof window === 'undefined') return
+    if (window.location.hash === '#backup-plan') {
+      setScheduleBackupOpen(true)
+    }
+  }, [showSchedule])
 
   return (
     <>
@@ -760,17 +828,17 @@ export function BoardView({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">
-                {showGuests ? 'Gästeliste' : 'Party-Details'}
+                {showGuests ? t('overview.guestTitle') : t('overview.title')}
               </p>
               <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800 sm:text-3xl">
                 {showGuests
-                  ? board.partyDetails.forWhom || 'Noch kein Anlass eingetragen'
-                  : board.partyDetails.forWhom || 'Noch kein Anlass eingetragen'}
+                  ? board.partyDetails.forWhom || t('boards.activePartyFallback')
+                  : board.partyDetails.forWhom || t('boards.activePartyFallback')}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500">
                 {showGuests
-                  ? 'Hier verwaltest du die Gästeliste und den RSVP-Link.'
-                  : 'Diese Angaben werden gespeichert und als Kontext für die KI genutzt.'}
+                  ? t('overview.guestSubtitle')
+                  : t('overview.subtitle')}
               </p>
               </div>
               {showOverview && onDuplicateBoard && (
@@ -780,14 +848,14 @@ export function BoardView({
                       onClick={() => void onDuplicateBoard()}
                       className="rounded-full border border-amber-200 bg-white px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50"
                     >
-                      Als Vorlage für neue Party nutzen
+                      {t('boards.fromTemplate')}
                     </button>
                   )}
                   <button
                     onClick={() => setEditingDetails((current) => !current)}
                     className="rounded-full border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-orange-700 transition hover:bg-orange-50"
                   >
-                    {editingDetails ? 'Zurück' : 'Bearbeiten'}
+                    {editingDetails ? t('overview.back') : t('overview.edit')}
                   </button>
                 </div>
               )}
@@ -795,31 +863,30 @@ export function BoardView({
 
             {showSummary && (
               <div className="w-full rounded-2xl border border-orange-100 bg-orange-50/70 p-4 text-sm leading-relaxed text-stone-600">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-600">
-                  Party auf einen Blick
-                </p>
-                {summaryLines.length > 0 ? (
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-600">{t('overview.partyAtAGlance')}</p>
+                {summaryCards.length > 0 ? (
                   <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {summaryLines.map((line) => {
-                      const { label, value } = splitSummaryLine(line)
-                      return (
-                        <div key={line} className="rounded-xl bg-white/80 px-3 py-2.5 shadow-sm">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">
-                            {label}
-                          </p>
-                          <p className="mt-0.5 text-sm font-medium text-stone-700">
-                            {value || label}
-                          </p>
-                        </div>
-                      )
-                    })}
+                    {summaryCards.map((card) => (
+                      <div key={`${card.label}:${card.value}`} className="rounded-xl bg-white/80 px-3 py-2.5 shadow-sm">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">
+                          {card.label}
+                        </p>
+                        <p className="mt-0.5 text-sm font-medium text-stone-700">
+                          {card.value}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="mt-3 rounded-xl border border-dashed border-orange-200 bg-white/70 px-4 py-6 text-center text-stone-500">
-                    Noch keine Party-Details eingetragen.
+                    {t('overview.noDetails')}
                   </div>
                 )}
               </div>
+            )}
+
+            {showOverview && (
+              <WeatherForecastCard partyDetails={board.partyDetails} />
             )}
           </div>
 
@@ -830,8 +897,8 @@ export function BoardView({
                 onChange={updatePartyDetails}
                 onShareRsvpLink={handleShareRsvpLink}
                 onShareRsvpLinkWhatsApp={handleShareRsvpLinkWhatsApp}
-                shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
-                shareWhatsAppLabel="Per WhatsApp teilen"
+                shareLabel={shareState === 'copied' ? t('overview.reminderGuestLinkCopied') : t('overview.reminderGuestLinkCopy')}
+                shareWhatsAppLabel={t('overview.overviewGuestLinkWhatsApp')}
                 showDetails
                 showGuestList={false}
                 showCalendar
@@ -841,7 +908,7 @@ export function BoardView({
                   onClick={() => setEditingDetails(false)}
                   className="rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600"
                 >
-                  Speichern & zurück
+                  {t('overview.overviewDetailsSaved')}
                 </button>
               </div>
             </div>
@@ -853,7 +920,10 @@ export function BoardView({
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-col gap-1">
                     <p className="text-sm font-semibold text-stone-700">
-                      {respondedGuests} von {board.partyDetails.guests.length} Gästen haben geantwortet
+                      {t('overview.totalGuestsResponded', {
+                        responded: respondedGuests,
+                        total: board.partyDetails.guests.length,
+                      })}
                     </p>
                     {board.partyDetails.responseDeadline && (
                       <p
@@ -862,10 +932,10 @@ export function BoardView({
                         }`}
                       >
                         {responseDeadlineExpired
-                          ? 'Frist abgelaufen'
+                          ? t('overview.deadlineExpired')
                           : responseDeadlineLabel
-                            ? `Antwort bis: ${responseDeadlineLabel}`
-                            : 'Antwort bis gesetzt'}
+                            ? t('overview.responseBy', { date: responseDeadlineLabel })
+                            : t('overview.deadlineSet')}
                       </p>
                     )}
                   </div>
@@ -874,13 +944,13 @@ export function BoardView({
                       onClick={openReminderDialog}
                       className="rounded-2xl border border-amber-200 bg-white px-4 py-2.5 text-sm font-semibold text-amber-700 shadow-sm transition hover:bg-amber-50"
                     >
-                      Erinnerung vorbereiten
+                      {t('overview.reminderPrepare')}
                     </button>
                   )}
                 </div>
                 {!canPrepareReminder && (
                   <p className="mt-2 text-xs font-medium text-stone-400">
-                    Alle Gäste haben bereits geantwortet.
+                    {t('overview.allResponded')}
                   </p>
                 )}
               </div>
@@ -890,8 +960,8 @@ export function BoardView({
                 onChange={updatePartyDetails}
                 onShareRsvpLink={handleShareRsvpLink}
                 onShareRsvpLinkWhatsApp={handleShareRsvpLinkWhatsApp}
-                shareLabel={shareState === 'copied' ? 'Kopiert!' : 'Gäste-Link kopieren'}
-                shareWhatsAppLabel="Per WhatsApp teilen"
+                shareLabel={shareState === 'copied' ? t('common.copied') : t('overview.overviewGuestLink')}
+                shareWhatsAppLabel={t('overview.overviewGuestLinkWhatsApp')}
                 showDetails={false}
                 showGuestList
                 showCalendar={false}
@@ -915,13 +985,13 @@ export function BoardView({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">
-                      Erinnerung
+                      {t('overview.reminderTitle')}
                     </p>
                     <h3 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800">
-                      RSVP-Erinnerung vorbereiten
+                      {t('overview.reminderTitle')}
                     </h3>
                     <p className="mt-2 text-sm leading-relaxed text-stone-500">
-                      Vorschau des Textes, den du an Gäste schicken kannst, die noch nicht geantwortet haben.
+                      {t('overview.reminderIntro')}
                     </p>
                   </div>
                   <button
@@ -932,12 +1002,12 @@ export function BoardView({
                     }}
                     className="rounded-full px-3 py-1.5 text-sm font-medium text-stone-500 transition hover:bg-stone-100"
                   >
-                    Schließen
+                    {t('common.close')}
                   </button>
                 </div>
 
                 <div className="mt-5 rounded-[1.4rem] border border-orange-100 bg-orange-50/60 p-4">
-                  <p className="text-sm font-semibold text-stone-700">Vorschau</p>
+                  <p className="text-sm font-semibold text-stone-700">{t('overview.reminderPreview')}</p>
                   <p className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-stone-700 shadow-sm">
                     {reminderText}
                   </p>
@@ -945,7 +1015,10 @@ export function BoardView({
 
                 <div className="mt-5 rounded-[1.4rem] border border-orange-100 bg-orange-50/60 p-4">
                   <p className="text-sm font-semibold text-stone-700">
-                    Noch offen: {pendingGuests.length} Gast{pendingGuests.length === 1 ? '' : 'e'}
+                    {t('overview.reminderHowMany', {
+                      count: pendingGuests.length,
+                      plural: pendingGuests.length === 1 ? '' : 'e',
+                    })}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {pendingGuests.map((guest) => (
@@ -964,13 +1037,13 @@ export function BoardView({
                     onClick={() => void handleCopyReminderText(reminderText)}
                     className="rounded-2xl bg-orange-500 px-4 py-3 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600"
                   >
-                    {reminderCopyState === 'copied' ? 'Kopiert!' : 'Text kopieren'}
+                    {reminderCopyState === 'copied' ? t('common.copied') : t('overview.reminderCopy')}
                   </button>
                   <button
                     onClick={() => handleOpenWhatsApp(reminderText)}
                     className="rounded-2xl border border-green-200 bg-white px-4 py-3 font-semibold text-green-700 shadow-sm transition hover:bg-green-50"
                   >
-                    Per WhatsApp teilen
+                    {t('overview.reminderShareWhatsApp')}
                   </button>
                 </div>
               </div>
@@ -982,7 +1055,7 @@ export function BoardView({
               onClick={onOpenPlan}
               className="rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700"
             >
-              Gesamtplan ansehen
+              {t('overview.openFullPlan')}
             </button>
           </div>
         </section>
@@ -997,7 +1070,7 @@ export function BoardView({
                 disabled={loadingIdeas}
                 className="whitespace-nowrap rounded-2xl bg-orange-500 px-5 py-3 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 hover:shadow-md disabled:opacity-40"
               >
-                {loadingIdeas ? 'Denkt nach…' : '✨ Ideen für diese Party holen'}
+                {loadingIdeas ? t('ideas.generating') : t('ideas.generate')}
               </button>
             </div>
             <div className="flex flex-1 gap-2">
@@ -1005,7 +1078,7 @@ export function BoardView({
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddLink()}
-                placeholder="Link einwerfen (YouTube, Amazon, …)"
+                placeholder={t('ideas.addLinkPlaceholder')}
                 className="flex-1 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3 text-stone-800 placeholder-stone-400 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
               />
               <button
@@ -1013,14 +1086,14 @@ export function BoardView({
                 disabled={loadingLink || !urlInput.trim()}
                 className="whitespace-nowrap rounded-2xl bg-sky-500 px-5 py-3 font-semibold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600 hover:shadow-md disabled:opacity-40"
               >
-                {loadingLink ? 'Lädt…' : '🔗 Hinzufügen'}
+                {loadingLink ? t('common.loading') : t('ideas.addLink')}
               </button>
             </div>
             <button
               onClick={() => setEditor('new')}
               className="whitespace-nowrap rounded-2xl border-2 border-dashed border-orange-200 px-5 py-3 font-semibold text-orange-600 transition hover:border-orange-400 hover:bg-orange-50"
             >
-              ＋ Eigene Idee
+              {t('ideas.ownIdea')}
             </button>
           </div>
 
@@ -1028,7 +1101,7 @@ export function BoardView({
             <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
               <p className="mb-4 text-5xl">🎈</p>
               <p className="mx-auto max-w-md leading-relaxed">
-                Noch leer hier. Trag oben die Party-Details ein und hol dir dann ein Ideen-Startset.
+                {t('ideas.empty')}
               </p>
             </div>
           )}
@@ -1066,7 +1139,7 @@ export function BoardView({
                         disabled={loadingMore !== null}
                         className="rounded-full bg-white/70 px-3 py-1.5 text-sm font-semibold text-stone-500 shadow-sm transition hover:text-orange-700 disabled:opacity-40"
                       >
-                        {loadingMore === category ? 'Denkt nach…' : '✨ mehr davon'}
+                        {loadingMore === category ? t('ideas.generatingMore') : t('ideas.moreLikeThis')}
                       </button>
                     )}
                   </div>

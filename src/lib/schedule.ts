@@ -1,6 +1,11 @@
 import type { PartyDetails, PartyScheduleBackupItem, PartyScheduleItem } from '../types'
+import i18n from '../i18n'
 
 const MS_PER_MINUTE = 60 * 1000
+
+function isEnglishLocale(): boolean {
+  return (i18n.resolvedLanguage ?? i18n.language).toLowerCase().startsWith('en')
+}
 
 function parsePartyStart(details: PartyDetails): Date | null {
   if (!details.date || !details.time) return null
@@ -9,20 +14,21 @@ function parsePartyStart(details: PartyDetails): Date | null {
 }
 
 function formatClock(date: Date): string {
-  return new Intl.DateTimeFormat('de-DE', {
+  return new Intl.DateTimeFormat(isEnglishLocale() ? 'en-US' : 'de-DE', {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date)
 }
 
 function formatRelative(minutes?: number | null): string {
-  if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return 'Ohne Zeit'
-  if (minutes <= 0) return 'Start'
-  if (minutes < 60) return `nach ${minutes} Min.`
+  const english = isEnglishLocale()
+  if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return english ? 'No time' : 'Ohne Zeit'
+  if (minutes <= 0) return english ? 'Start' : 'Start'
+  if (minutes < 60) return english ? `${minutes} min after start` : `nach ${minutes} Min.`
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
-  if (rest === 0) return `nach ${hours} Std.`
-  return `nach ${hours} Std. ${rest} Min.`
+  if (rest === 0) return english ? `${hours} h after start` : `nach ${hours} Std.`
+  return english ? `${hours} h ${rest} min after start` : `nach ${hours} Std. ${rest} Min.`
 }
 
 type SortableScheduleItem = Pick<

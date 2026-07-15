@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { PartyDetails, PlanningTaskItem } from '../types'
 import {
   formatRelativeTaskLabel,
@@ -41,6 +42,7 @@ export function TaskTimelineSection({
   onAddItem,
   onRemoveItem,
 }: Props) {
+  const { t } = useTranslation()
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
   const [daysBeforeParty, setDaysBeforeParty] = useState('')
@@ -70,14 +72,13 @@ export function TaskTimelineSection({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500 print:text-stone-500">
-            Zeitplan
+            {t('timeline.title')}
           </p>
           <h3 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800 print:text-black">
-            To-dos vor der Party
+            {t('timeline.subtitle')}
           </h3>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500 print:text-stone-700">
-            Zeitlich gestaffelte Aufgaben für die Vorbereitung. Abhaken, ergänzen und chronologisch
-            im Blick behalten.
+            {t('timeline.description')}
           </p>
         </div>
 
@@ -88,7 +89,7 @@ export function TaskTimelineSection({
               disabled={!canGenerate || generating}
               className="rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:opacity-40"
             >
-              {generating ? 'Plant…' : items.length > 0 ? 'Zeitplan aktualisieren' : 'Zeitplan generieren'}
+              {generating ? t('timeline.generating') : items.length > 0 ? t('timeline.update') : t('timeline.generate')}
             </button>
           </div>
         )}
@@ -98,26 +99,26 @@ export function TaskTimelineSection({
         <div className="mt-4 rounded-[1.35rem] border border-amber-100 bg-amber-50/60 p-4 print:hidden">
           <div className="grid gap-2 lg:grid-cols-[1fr_170px_170px]">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold text-stone-600">Aufgabe</span>
+              <span className="text-xs font-semibold text-stone-600">{t('timeline.taskLabel')}</span>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Eigene Aufgabe hinzufügen"
+                placeholder={t('timeline.taskPlaceholder')}
                 className="rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold text-stone-600">Tage vorher</span>
+              <span className="text-xs font-semibold text-stone-600">{t('timeline.daysBeforeLabel')}</span>
               <input
                 value={daysBeforeParty}
                 onChange={(e) => setDaysBeforeParty(e.target.value)}
                 inputMode="numeric"
-                placeholder="z.B. 7"
+                placeholder={t('timeline.daysBeforePlaceholder')}
                 className="rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold text-stone-600">Datum optional</span>
+              <span className="text-xs font-semibold text-stone-600">{t('timeline.dateLabel')}</span>
               <input
                 type="date"
                 value={dueDate}
@@ -130,7 +131,7 @@ export function TaskTimelineSection({
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Notiz / Hinweis (optional)"
+              placeholder={t('timeline.notePlaceholder')}
               className="rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
             />
             <button
@@ -138,20 +139,20 @@ export function TaskTimelineSection({
               disabled={!title.trim()}
               className="rounded-2xl bg-stone-800 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-stone-700 disabled:opacity-40"
             >
-              Hinzufügen
+              {t('timeline.add')}
             </button>
           </div>
           <p className="mt-2 text-xs font-medium text-stone-500">
             {hasPartyDate
-              ? 'Mit gesetztem Party-Datum zeigen wir zusätzlich das konkrete Kalenderdatum an.'
-              : 'Ohne Party-Datum werden nur relative Angaben angezeigt.'}
+              ? t('timeline.withDateHint')
+              : t('timeline.withoutDateHint')}
           </p>
         </div>
       )}
 
       {items.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50/40 px-4 py-8 text-center text-sm text-stone-500 print:border-stone-300 print:bg-white print:text-stone-700">
-          Noch keine Aufgaben vorhanden.
+          {t('timeline.noTasks')}
         </p>
       ) : (
         <div className="mt-5 space-y-2">
@@ -172,8 +173,8 @@ export function TaskTimelineSection({
                         ? 'border-amber-400 bg-amber-100 text-amber-700'
                         : 'border-stone-300 bg-white text-stone-400 hover:border-amber-300 hover:text-amber-600'
                     }`}
-                    aria-label={task.checked ? 'Als unerledigt markieren' : 'Als erledigt markieren'}
-                    title={task.checked ? 'Als unerledigt markieren' : 'Als erledigt markieren'}
+                    aria-label={task.checked ? t('timeline.markTodo') : t('timeline.markDone')}
+                    title={task.checked ? t('timeline.markTodo') : t('timeline.markDone')}
                   >
                     {task.checked ? '✓' : ''}
                   </button>
@@ -216,11 +217,11 @@ export function TaskTimelineSection({
                 </div>
 
                 {editable && onRemoveItem && (
-                  <button
-                    onClick={() => onRemoveItem(task.id)}
-                    className="rounded-full px-2 py-1 text-sm font-medium text-rose-600 transition hover:bg-rose-50 print:hidden"
-                  >
-                    Entfernen
+                <button
+                  onClick={() => onRemoveItem(task.id)}
+                  className="rounded-full px-2 py-1 text-sm font-medium text-rose-600 transition hover:bg-rose-50 print:hidden"
+                >
+                    {t('timeline.remove')}
                   </button>
                 )}
               </div>

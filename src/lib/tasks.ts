@@ -1,6 +1,11 @@
 import type { PartyDetails, PlanningTaskItem } from '../types'
+import i18n from '../i18n'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+function isEnglishLocale(): boolean {
+  return (i18n.resolvedLanguage ?? i18n.language).toLowerCase().startsWith('en')
+}
 
 function parsePartyDate(date: string): Date | null {
   if (!date) return null
@@ -9,7 +14,7 @@ function parsePartyDate(date: string): Date | null {
 }
 
 function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('de-DE', {
+  return new Intl.DateTimeFormat(isEnglishLocale() ? 'en-US' : 'de-DE', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -28,14 +33,28 @@ export function normalizeTaskDaysBeforeParty(task: PlanningTaskItem, partyDate?:
 }
 
 export function formatRelativeTaskLabel(daysBeforeParty: number | null | undefined): string {
-  if (typeof daysBeforeParty !== 'number' || !Number.isFinite(daysBeforeParty)) return 'Ohne Termin'
-  if (daysBeforeParty <= 0) return daysBeforeParty === 0 ? 'heute' : `${Math.abs(daysBeforeParty)} Tage nach der Party`
-  if (daysBeforeParty === 1) return '1 Tag vorher'
+  const english = isEnglishLocale()
+  if (typeof daysBeforeParty !== 'number' || !Number.isFinite(daysBeforeParty)) {
+    return english ? 'No date' : 'Ohne Termin'
+  }
+  if (daysBeforeParty <= 0) {
+    if (daysBeforeParty === 0) return english ? 'today' : 'heute'
+    return english
+      ? `${Math.abs(daysBeforeParty)} days after the party`
+      : `${Math.abs(daysBeforeParty)} Tage nach der Party`
+  }
+  if (daysBeforeParty === 1) return english ? '1 day before' : '1 Tag vorher'
   if (daysBeforeParty % 7 === 0) {
     const weeks = Math.round(daysBeforeParty / 7)
-    return weeks === 1 ? '1 Woche vorher' : `${weeks} Wochen vorher`
+    return weeks === 1
+      ? english
+        ? '1 week before'
+        : '1 Woche vorher'
+      : english
+        ? `${weeks} weeks before`
+        : `${weeks} Wochen vorher`
   }
-  return `${daysBeforeParty} Tage vorher`
+  return english ? `${daysBeforeParty} days before` : `${daysBeforeParty} Tage vorher`
 }
 
 export function formatTaskAbsoluteDate(
@@ -61,4 +80,3 @@ export function sortPlanningTasks(items: PlanningTaskItem[], partyDetails: Party
     return left.createdAt - right.createdAt
   })
 }
-

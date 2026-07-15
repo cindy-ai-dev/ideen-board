@@ -13,7 +13,8 @@ function isGuestStatus(value: unknown): value is GuestStatus {
 function publicPartyDetails(board: Awaited<ReturnType<typeof getBoardByRsvpToken>>): {
   forWhom: string
   theme: string
-  location: string
+  streetAddress: string
+  city: string
   date: string
   time: string
 } | null {
@@ -22,7 +23,13 @@ function publicPartyDetails(board: Awaited<ReturnType<typeof getBoardByRsvpToken
   return {
     forWhom: partyDetails.forWhom,
     theme: partyDetails.theme,
-    location: partyDetails.location,
+    streetAddress:
+      typeof partyDetails.streetAddress === 'string'
+        ? partyDetails.streetAddress
+        : typeof (partyDetails as { location?: unknown }).location === 'string'
+          ? ((partyDetails as { location?: string }).location ?? '')
+          : '',
+    city: typeof partyDetails.city === 'string' ? partyDetails.city : '',
     date: partyDetails.date,
     time: partyDetails.time,
   }

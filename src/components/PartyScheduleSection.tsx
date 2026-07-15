@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { PartyDetails, PartyScheduleBackupItem, PartyScheduleItem } from '../types'
 import { formatPartyScheduleLabel, sortPartySchedule } from '../lib/schedule'
 
@@ -36,6 +37,7 @@ export function PartyScheduleSection({
   onUpdateItem,
   onRemoveItem,
 }: Props) {
+  const { t } = useTranslation()
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
   const [minutesFromStart, setMinutesFromStart] = useState('')
@@ -100,13 +102,13 @@ export function PartyScheduleSection({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500 print:text-stone-500">
-            Ablaufplan
+            {t('schedule.title')}
           </p>
           <h3 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800 print:text-black">
-            Programm am Partytag
+            {t('schedule.subtitle')}
           </h3>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500 print:text-stone-700">
-            Zeitlich strukturierter Vorschlag für den Partytag selbst – vom Ankommen bis zum Ausklang.
+            {t('schedule.description')}
           </p>
         </div>
 
@@ -115,7 +117,7 @@ export function PartyScheduleSection({
             <textarea
               value={wishes}
               onChange={(e) => setWishes(e.target.value)}
-              placeholder="Besondere Wünsche für den Ablauf? (z. B. 'nur Indoor-Aktivitäten', 'Fokus auf Schnitzeljagd', 'kein Kuchen schneiden vor 15 Uhr')"
+              placeholder={t('schedule.wishesPlaceholder')}
               rows={3}
               className="w-full min-w-[min(100%,24rem)] rounded-2xl border border-orange-100 bg-orange-50/60 px-4 py-3 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100 print:hidden"
             />
@@ -125,10 +127,10 @@ export function PartyScheduleSection({
               className="self-start rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:opacity-40 print:hidden"
             >
               {generating
-                ? 'Plant…'
+                ? t('schedule.generating')
                 : items.length > 0
-                  ? 'Ablaufplan aktualisieren'
-                  : 'Ablaufplan generieren'}
+                  ? t('schedule.update')
+                  : t('schedule.generate')}
             </button>
           </div>
         )}
@@ -136,7 +138,7 @@ export function PartyScheduleSection({
 
       {sorted.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50/40 px-4 py-8 text-center text-sm text-stone-500 print:border-stone-300 print:bg-white print:text-stone-700">
-          Noch kein Ablaufplan generiert.
+          {t('schedule.noSchedule')}
         </p>
       ) : (
         <div className="mt-5 space-y-2">
@@ -163,14 +165,14 @@ export function PartyScheduleSection({
                       <input
                         value={editingNote}
                         onChange={(e) => setEditingNote(e.target.value)}
-                        placeholder="Beschreibung / Hinweis"
+                        placeholder={t('schedule.notePlaceholder')}
                         className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                       />
                       <input
                         value={editingMinutesFromStart}
                         onChange={(e) => setEditingMinutesFromStart(e.target.value)}
                         inputMode="numeric"
-                        placeholder="Minuten ab Start"
+                        placeholder={t('schedule.minutesFromStart', { value: '' }).trim()}
                         className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                       />
                     </div>
@@ -179,13 +181,13 @@ export function PartyScheduleSection({
                         onClick={saveEdit}
                         className="rounded-full bg-orange-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600"
                       >
-                        Speichern
+                        {t('schedule.save')}
                       </button>
                       <button
                         onClick={cancelEdit}
                         className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-stone-600 transition hover:bg-stone-50"
                       >
-                        Abbrechen
+                        {t('schedule.cancel')}
                       </button>
                     </div>
                   </div>
@@ -194,22 +196,22 @@ export function PartyScheduleSection({
                 ) : null}
               </div>
               {editable && onUpdateItem && editingId !== item.id && (
-                <button
-                  onClick={() => beginEdit(item)}
-                  className="self-start rounded-full px-3 py-1.5 text-sm font-medium text-orange-700 transition hover:bg-orange-50"
-                >
-                  ✎ Bearbeiten
-                </button>
-              )}
-              {editable && onRemoveItem && (
-                <button
-                  onClick={() => onRemoveItem(item.id)}
-                  className="self-start rounded-full px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
-                >
-                  Entfernen
-                </button>
-              )}
-            </div>
+                  <button
+                    onClick={() => beginEdit(item)}
+                    className="self-start rounded-full px-3 py-1.5 text-sm font-medium text-orange-700 transition hover:bg-orange-50"
+                  >
+                  ✎ {t('overview.edit')}
+                  </button>
+                )}
+                {editable && onRemoveItem && (
+                  <button
+                    onClick={() => onRemoveItem(item.id)}
+                    className="self-start rounded-full px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+                  >
+                    {t('schedule.remove')}
+                  </button>
+                )}
+              </div>
           ))}
         </div>
       )}
@@ -220,23 +222,23 @@ export function PartyScheduleSection({
             <>
               <div className="grid gap-2 lg:grid-cols-[1fr_180px]">
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-semibold text-stone-600">Programmpunkt</span>
+                  <span className="text-xs font-semibold text-stone-600">{t('schedule.programPoint')}</span>
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="z.B. Begrüßung & Ankommen"
+                    placeholder={t('schedule.examplePoint')}
                     className="rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className="text-xs font-semibold text-stone-600">
-                    {hasPartyTime ? 'Minuten nach Start' : 'Minuten ab Start'}
+                    {hasPartyTime ? t('schedule.hoursAfterStart', { value: '' }).trim() : t('schedule.minutesFromStart', { value: '' }).trim()}
                   </span>
                   <input
                     value={minutesFromStart}
                     onChange={(e) => setMinutesFromStart(e.target.value)}
                     inputMode="numeric"
-                    placeholder="z.B. 30"
+                    placeholder={t('schedule.exampleMinutes')}
                     className="rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                   />
                 </label>
@@ -245,7 +247,7 @@ export function PartyScheduleSection({
                 <input
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Beschreibung / Hinweis (optional)"
+                  placeholder={t('schedule.notePlaceholder')}
                   className="rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                 />
                 <button
@@ -253,13 +255,13 @@ export function PartyScheduleSection({
                   disabled={!title.trim()}
                   className="rounded-2xl bg-stone-800 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-stone-700 disabled:opacity-40"
                 >
-                  Hinzufügen
+                  {t('schedule.add')}
                 </button>
               </div>
               <p className="mt-2 text-xs font-medium text-stone-500">
                 {hasPartyTime
-                  ? 'Wenn Datum und Uhrzeit gesetzt sind, zeigen wir die exakte Uhrzeit an.'
-                  : 'Ohne Party-Uhrzeit zeigen wir relative Angaben wie „nach 30 Min.“ an.'}
+                  ? t('schedule.withDateHint')
+                  : t('schedule.withoutDateHint')}
               </p>
             </>
           ) : (
@@ -267,7 +269,7 @@ export function PartyScheduleSection({
               onClick={() => setShowAddForm(true)}
               className="w-full rounded-2xl border-2 border-dashed border-orange-200 px-4 py-3 text-sm font-semibold text-orange-700 transition hover:border-orange-400 hover:bg-orange-50"
             >
-              ＋ Programmpunkt hinzufügen
+              {t('schedule.addPoint')}
             </button>
           )}
         </div>
@@ -281,19 +283,19 @@ export function PartyScheduleSection({
           >
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-600 print:text-stone-500">
-                Regen-/Backup-Plan
+                {t('schedule.backupTitle')}
               </p>
               <p className="mt-1 text-sm font-medium text-stone-700">
-                {backupOpen ? 'Backup-Plan ausblenden' : 'Regen-/Backup-Plan anzeigen'}
+                {backupOpen ? t('schedule.hideBackup') : t('schedule.showBackup')}
               </p>
             </div>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-700 shadow-sm print:border print:border-stone-300">
-              {sortedBackup.length} Vorschläge
+              {t('schedule.backupCount', { count: sortedBackup.length })}
             </span>
           </button>
 
           {backupOpen && (
-            <div className="mt-3 space-y-2 print:block">
+            <div id="backup-plan" className="mt-3 space-y-2 print:block">
               {sortedBackup.map((item) => (
                 <div
                   key={item.id}

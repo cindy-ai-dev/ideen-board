@@ -1,4 +1,5 @@
 import type { PartyDetails } from '../types.js'
+import { formatPartyAddress } from './location'
 
 // Gemeinsame Bausteine für die OpenAI-Anfragen. Dieses Modul wird von
 // ZWEI Seiten benutzt: vom Browser (lokale Entwicklung) und von den
@@ -168,7 +169,8 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
     age: null,
     preferences: '',
     responseDeadline: '',
-    location: '',
+    streetAddress: '',
+    city: '',
     date: '',
     time: '',
     guestCount: null,
@@ -181,7 +183,7 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
   const theme = normalizeText(safe.theme)
   const preferences = normalizeText(safe.preferences)
   const responseDeadline = normalizeText(safe.responseDeadline)
-  const location = normalizeText(safe.location)
+  const address = normalizeText(formatPartyAddress(safe.streetAddress, safe.city))
   const date = normalizeText(safe.date)
   const time = normalizeText(safe.time)
   const age = typeof safe.age === 'number' && safe.age > 0 ? Math.round(safe.age) : null
@@ -217,7 +219,7 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
   if (age !== null) lines.push(`Alter: ${age}`)
   if (preferences) lines.push(`Vorlieben / Besonderheiten: ${preferences}`)
   if (formattedResponseDeadline) lines.push(`Antwort bis: ${formattedResponseDeadline}`)
-  if (location) lines.push(`Ort: ${location}`)
+  if (address) lines.push(`Ort / Adresse: ${address}`)
   if (date || time) lines.push(`Termin: ${[date, time].filter(Boolean).join(' · ')}`)
   if (confirmedGuestTotal > 0) {
     lines.push(`Gästezahl: ${confirmedGuestTotal} Person${confirmedGuestTotal === 1 ? '' : 'en'}`)

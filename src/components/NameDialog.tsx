@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 // Kleiner Dialog für einen einzelnen Namen – genutzt für
 // "Neues Board" und "Board umbenennen".
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function NameDialog({ title, initial = '', onSave, onClose }: Props) {
+  const { t } = useTranslation()
   const [name, setName] = useState(initial)
 
   function handleSave() {
@@ -32,22 +34,22 @@ export function NameDialog({ title, initial = '', onSave, onClose }: Props) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          placeholder='z.B. "Renovierung Bad"'
+          placeholder={t('dialog.namePlaceholder')}
           className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
         />
         <div className="flex justify-end gap-2">
           <button
-            onClick={onClose}
-            className="rounded-2xl px-4 py-2.5 font-medium text-stone-600 transition hover:bg-stone-100"
-          >
-            Abbrechen
+          onClick={onClose}
+          className="rounded-2xl px-4 py-2.5 font-medium text-stone-600 transition hover:bg-stone-100"
+        >
+            {t('common.cancel')}
           </button>
           <button
-            onClick={handleSave}
-            disabled={!name.trim()}
-            className="rounded-2xl bg-orange-500 px-5 py-2.5 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:opacity-40"
-          >
-            Speichern
+          onClick={handleSave}
+          disabled={!name.trim()}
+          className="rounded-2xl bg-orange-500 px-5 py-2.5 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:opacity-40"
+        >
+            {t('common.save')}
           </button>
         </div>
       </div>

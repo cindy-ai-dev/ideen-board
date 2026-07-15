@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { Tile } from '../types'
 
 // Jede Kategorie bekommt deterministisch eine Farbe aus der Palette,
@@ -28,6 +29,7 @@ export function TileCard({
   onEdit: (tile: Tile) => void
   onToggleSelected: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const color = categoryColor(tile.category)
 
   return (
@@ -77,8 +79,8 @@ export function TileCard({
             e.stopPropagation()
             onToggleSelected(tile.id)
           }}
-          title={tile.selected ? 'Als nicht ausgewählt markieren' : 'Als ausgewählt markieren'}
-          aria-label={tile.selected ? 'Als nicht ausgewählt markieren' : 'Als ausgewählt markieren'}
+          title={tile.selected ? t('common.unselected') : t('common.selected')}
+          aria-label={tile.selected ? t('common.unselected') : t('common.selected')}
           className={`h-8 w-8 rounded-full bg-white/90 text-sm leading-none shadow-sm transition hover:bg-white ${
             tile.selected ? 'text-amber-500 hover:text-amber-600' : 'text-stone-500 hover:text-amber-600'
           }`}
@@ -93,8 +95,8 @@ export function TileCard({
             e.stopPropagation()
             onEdit(tile)
           }}
-          title="Kachel bearbeiten"
-          aria-label="Kachel bearbeiten"
+          title={t('dialog.tileEditTitle')}
+          aria-label={t('dialog.tileEditTitle')}
           className="h-8 w-8 rounded-full bg-white/90 text-sm leading-none text-stone-500 shadow-sm transition hover:bg-white hover:text-orange-700"
         >
           ✎
@@ -105,8 +107,8 @@ export function TileCard({
             e.stopPropagation()
             onDelete(tile.id)
           }}
-          title="Kachel entfernen"
-          aria-label="Kachel entfernen"
+          title={t('common.remove')}
+          aria-label={t('common.remove')}
           className="h-8 w-8 rounded-full bg-white/90 text-sm leading-none text-stone-500 shadow-sm transition hover:bg-white hover:text-rose-600"
         >
           ✕

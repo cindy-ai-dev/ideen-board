@@ -1,30 +1,18 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { PartyDetails } from '../types'
 import type { ShoppingListItem } from '../types'
 
-const DEFAULT_SECTIONS = [
-  'Deko',
-  'Essen',
-  'Getränke',
-  'Geschirr',
-  'Backen',
-  'Mitgebsel',
-  'Spiele',
-  'Unterhaltung',
-  'Einladung',
-  'Zeitplan',
-  'Einkauf',
-  'Sonstiges',
-]
-
-function normalizeSection(section: string): string {
-  return section.trim() || 'Sonstiges'
+function normalizeSection(section: string, fallback: string): string {
+  const trimmed = section.trim()
+  if (!trimmed || trimmed === 'Sonstiges' || trimmed === 'Misc') return fallback
+  return trimmed
 }
 
-function groupItems(items: ShoppingListItem[]) {
+function groupItems(items: ShoppingListItem[], fallback: string) {
   const map = new Map<string, ShoppingListItem[]>()
   for (const item of items) {
-    const section = normalizeSection(item.section)
+    const section = normalizeSection(item.section, fallback)
     const list = map.get(section) ?? []
     list.push({ ...item, section })
     map.set(section, list)
@@ -55,11 +43,28 @@ export function ShoppingListSection({
   onAddItem,
   onRemoveItem,
 }: Props) {
+  const { t } = useTranslation()
   const [label, setLabel] = useState('')
-  const [section, setSection] = useState('Sonstiges')
+  const miscSection = t('shopping.section.misc')
+  const [section, setSection] = useState(miscSection)
   const [price, setPrice] = useState('')
 
-  const grouped = useMemo(() => groupItems(items), [items])
+  const DEFAULT_SECTIONS = [
+    t('shopping.section.deco'),
+    t('shopping.section.food'),
+    t('shopping.section.drinks'),
+    t('shopping.section.tableware'),
+    t('shopping.section.baking'),
+    t('shopping.section.partyFavours'),
+    t('shopping.section.games'),
+    t('shopping.section.entertainment'),
+    t('shopping.section.invitation'),
+    t('shopping.section.schedule'),
+    t('shopping.section.shopping'),
+    t('shopping.section.misc'),
+  ]
+
+  const grouped = useMemo(() => groupItems(items, miscSection), [items, miscSection])
   const canGenerate = selectedIdeasCount > 0 && typeof onGenerate === 'function'
   const totalPrice = useMemo(
     () => items.reduce((sum, item) => sum + (typeof item.priceEuro === 'number' ? item.priceEuro : 0), 0),
@@ -80,7 +85,7 @@ export function ShoppingListSection({
 
   function handleAdd() {
     const nextLabel = label.trim()
-    const nextSection = normalizeSection(section)
+    const nextSection = normalizeSection(section, miscSection)
     if (!nextLabel || !onAddItem) return
     const normalizedPrice = price.trim().replace(',', '.')
     onAddItem({
@@ -98,28 +103,27 @@ export function ShoppingListSection({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500 print:text-stone-500">
-            Einkaufsliste
+            {t('shopping.title')}
           </p>
           <h3 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800 print:text-black">
-            Konkrete Einkaufspunkte
+            {t('shopping.subtitle')}
           </h3>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500 print:text-stone-700">
-            Ausgewählte Ideen werden per KI in Einkaufsposten übersetzt. Manuelle Ergänzungen
-            kannst du jederzeit hinzufügen.
+            {t('shopping.description')}
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 print:border print:border-stone-300 print:bg-white print:text-black">
-              Geschätzte Kosten: ca. {euro.format(totalPrice)}
+              {t('shopping.estimatedCosts', { cost: euro.format(totalPrice) })}
             </span>
             {budgetLimit !== null && (
               <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-800 print:border print:border-stone-300 print:bg-white print:text-black">
-                Budget: {euro.format(budgetLimit)}
+                {t('shopping.budget', { budget: euro.format(budgetLimit) })}
               </span>
             )}
           </div>
           {overBudget !== null && overBudget > 0 && (
             <p className="mt-2 text-sm font-medium text-amber-700 print:text-stone-700">
-              Das liegt {euro.format(overBudget)} über deinem Budget.
+              {t('shopping.overBudget', { value: euro.format(overBudget) })}
             </p>
           )}
         </div>
@@ -131,7 +135,7 @@ export function ShoppingListSection({
               disabled={!canGenerate || generating}
               className="rounded-2xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-amber-200 transition hover:bg-amber-600 disabled:opacity-40"
             >
-              {generating ? 'Generiert…' : items.length > 0 ? 'Liste aktualisieren' : 'Liste generieren'}
+              {generating ? t('shopping.generating') : items.length > 0 ? t('shopping.update') : t('shopping.generate')}
             </button>
           </div>
         )}
@@ -143,7 +147,7 @@ export function ShoppingListSection({
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="Eigenen Artikel hinzufügen"
+              placeholder={t('shopping.addPlaceholder')}
               className="flex-1 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
             />
             <select
@@ -161,7 +165,7 @@ export function ShoppingListSection({
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               inputMode="decimal"
-              placeholder="Preis € optional"
+              placeholder={t('shopping.pricePlaceholder')}
               className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
             />
             <button
@@ -169,12 +173,12 @@ export function ShoppingListSection({
               disabled={!label.trim()}
               className="rounded-2xl bg-stone-800 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-stone-700 disabled:opacity-40"
             >
-              Hinzufügen
+              {t('shopping.add')}
             </button>
           </div>
           {selectedIdeasCount === 0 && (
             <p className="mt-2 text-xs font-medium text-amber-700">
-              Für die KI-Liste müssen zuerst Ideen-Kacheln als ausgewählt markiert sein.
+              {t('shopping.selectedHint')}
             </p>
           )}
         </div>
@@ -182,7 +186,7 @@ export function ShoppingListSection({
 
       {items.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50/40 px-4 py-8 text-center text-sm text-stone-500 print:border-stone-300 print:bg-white print:text-stone-700">
-          Noch keine Einkaufsliste vorhanden.
+          {t('shopping.noList')}
         </p>
       ) : (
         <div className="mt-5 space-y-4">
@@ -196,7 +200,7 @@ export function ShoppingListSection({
                   {sectionName}
                 </h4>
                 <span className="text-xs font-semibold text-stone-500 print:text-stone-700">
-                  {sectionItems.length} Posten
+                  {t('shopping.sectionCount', { count: sectionItems.length })}
                 </span>
               </div>
 
@@ -214,8 +218,8 @@ export function ShoppingListSection({
                             ? 'border-amber-400 bg-amber-100 text-amber-700'
                             : 'border-stone-300 bg-white text-stone-400 hover:border-amber-300 hover:text-amber-600'
                         }`}
-                        aria-label={item.checked ? 'Als nicht gekauft markieren' : 'Als gekauft markieren'}
-                        title={item.checked ? 'Als nicht gekauft markieren' : 'Als gekauft markieren'}
+                        aria-label={item.checked ? t('shopping.markNotBought') : t('shopping.markBought')}
+                        title={item.checked ? t('shopping.markNotBought') : t('shopping.markBought')}
                       >
                         {item.checked ? '✓' : ''}
                       </button>
@@ -255,7 +259,7 @@ export function ShoppingListSection({
                         onClick={() => onRemoveItem(item.id)}
                         className="rounded-full px-2 py-1 text-sm font-medium text-rose-600 transition hover:bg-rose-50 print:hidden"
                       >
-                        Entfernen
+                        {t('shopping.remove')}
                       </button>
                     )}
                   </div>
