@@ -90,6 +90,10 @@ function downloadCalendar(value: PartyDetails) {
   URL.revokeObjectURL(url)
 }
 
+function formatEuroInput(value: number | null): string {
+  return typeof value === 'number' && Number.isFinite(value) ? String(value).replace('.', ',') : ''
+}
+
 export function PartyDetailsFields({ value, onChange, onShareRsvpLink, shareLabel }: Props) {
   const [guestName, setGuestName] = useState('')
   const [guestStatus, setGuestStatus] = useState<GuestStatus>('eingeladen')
@@ -106,6 +110,16 @@ export function PartyDetailsFields({ value, onChange, onShareRsvpLink, shareLabe
     }
     const parsed = Number.parseInt(nextValue, 10)
     updateField('guestCount', Number.isFinite(parsed) && parsed >= 0 ? parsed : null)
+  }
+
+  function handleBudgetLimit(nextValue: string) {
+    const normalized = nextValue.trim().replace(',', '.')
+    if (!normalized) {
+      updateField('budgetLimitEuro', null)
+      return
+    }
+    const parsed = Number.parseFloat(normalized)
+    updateField('budgetLimitEuro', Number.isFinite(parsed) && parsed >= 0 ? parsed : null)
   }
 
   function addGuest() {
@@ -181,6 +195,17 @@ export function PartyDetailsFields({ value, onChange, onShareRsvpLink, shareLabe
             placeholder="ca. 12"
             className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
           />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-semibold text-stone-600">Budget-Limit</span>
+          <input
+            inputMode="decimal"
+            value={formatEuroInput(value.budgetLimitEuro)}
+            onChange={(e) => handleBudgetLimit(e.target.value)}
+            placeholder="z.B. 50"
+            className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
+          />
+          <span className="text-xs text-stone-400">Optional, in Euro.</span>
         </label>
       </div>
 

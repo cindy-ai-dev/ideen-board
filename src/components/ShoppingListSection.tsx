@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { PartyDetails } from '../types'
 import type { ShoppingListItem } from '../types'
 
 const DEFAULT_SECTIONS = ['Deko', 'Essen', 'Getränke', 'Geschirr', 'Sonstiges']
@@ -20,17 +21,19 @@ function groupItems(items: ShoppingListItem[]) {
 
 interface Props {
   items: ShoppingListItem[]
+  partyDetails?: Pick<PartyDetails, 'budgetLimitEuro'>
   editable?: boolean
   generating?: boolean
   selectedIdeasCount?: number
   onGenerate?: () => void
   onToggleItem?: (id: string) => void
-  onAddItem?: (item: { label: string; section: string }) => void
+  onAddItem?: (item: { label: string; section: string; priceEuro?: number | null }) => void
   onRemoveItem?: (id: string) => void
 }
 
 export function ShoppingListSection({
   items,
+  partyDetails,
   editable = false,
   generating = false,
   selectedIdeasCount = 0,
@@ -41,17 +44,40 @@ export function ShoppingListSection({
 }: Props) {
   const [label, setLabel] = useState('')
   const [section, setSection] = useState('Sonstiges')
+  const [price, setPrice] = useState('')
 
   const grouped = useMemo(() => groupItems(items), [items])
   const canGenerate = selectedIdeasCount > 0 && typeof onGenerate === 'function'
+  const totalPrice = useMemo(
+    () => items.reduce((sum, item) => sum + (typeof item.priceEuro === 'number' ? item.priceEuro : 0), 0),
+    [items]
+  )
+  const budgetLimit = partyDetails?.budgetLimitEuro ?? null
+  const overBudget =
+    typeof budgetLimit === 'number' && Number.isFinite(budgetLimit) ? totalPrice - budgetLimit : null
+  const euro = useMemo(
+    () =>
+      new Intl.NumberFormat('de-DE', {
+        style: 'currency',
+        currency: 'EUR',
+        maximumFractionDigits: 2,
+      }),
+    []
+  )
 
   function handleAdd() {
     const nextLabel = label.trim()
     const nextSection = normalizeSection(section)
     if (!nextLabel || !onAddItem) return
-    onAddItem({ label: nextLabel, section: nextSection })
+    const normalizedPrice = price.trim().replace(',', '.')
+    onAddItem({
+      label: nextLabel,
+      section: nextSection,
+      priceEuro: normalizedPrice ? (Number.isFinite(Number.parseFloat(normalizedPrice)) ? Number.parseFloat(normalizedPrice) : null) : null,
+    })
     setLabel('')
     setSection(nextSection)
+    setPrice('')
   }
 
   return (
@@ -68,6 +94,21 @@ export function ShoppingListSection({
             Ausgewählte Ideen werden per KI in Einkaufsposten übersetzt. Manuelle Ergänzungen
             kannst du jederzeit hinzufügen.
           </p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 print:border print:border-stone-300 print:bg-white print:text-black">
+              Geschätzte Kosten: ca. {euro.format(totalPrice)}
+            </span>
+            {budgetLimit !== null && (
+              <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-800 print:border print:border-stone-300 print:bg-white print:text-black">
+                Budget: {euro.format(budgetLimit)}
+              </span>
+            )}
+          </div>
+          {overBudget !== null && overBudget > 0 && (
+            <p className="mt-2 text-sm font-medium text-amber-700 print:text-stone-700">
+              Das liegt {euro.format(overBudget)} über deinem Budget.
+            </p>
+          )}
         </div>
 
         {editable && (
@@ -85,7 +126,7 @@ export function ShoppingListSection({
 
       {editable && (
         <div className="mt-4 rounded-[1.35rem] border border-amber-100 bg-amber-50/60 p-4 print:hidden">
-          <div className="flex flex-col gap-2 lg:flex-row">
+          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[1fr_180px_140px]">
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
@@ -98,6 +139,13 @@ export function ShoppingListSection({
               list="shopping-sections"
               placeholder="Bereich"
               className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100 lg:max-w-52"
+            />
+            <input
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              inputMode="decimal"
+              placeholder="Preis € optional"
+              className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
             />
             <datalist id="shopping-sections">
               {DEFAULT_SECTIONS.map((value) => (
@@ -182,6 +230,11 @@ export function ShoppingListSection({
                       </p>
                       {item.note && (
                         <p className="mt-1 text-sm text-stone-500 print:text-stone-700">{item.note}</p>
+                      )}
+                      {typeof item.priceEuro === 'number' && Number.isFinite(item.priceEuro) && (
+                        <p className="mt-1 text-sm font-medium text-amber-700 print:text-stone-700">
+                          ca. {euro.format(item.priceEuro)}
+                        </p>
                       )}
                     </div>
 

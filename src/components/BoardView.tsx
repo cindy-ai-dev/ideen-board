@@ -16,6 +16,17 @@ function normalizeShoppingKey(section: string, label: string): string {
   return `${section.trim().toLowerCase()}::${label.trim().toLowerCase()}`
 }
 
+function normalizePrice(price: number | string | null | undefined): number | null {
+  if (typeof price === 'number') {
+    return Number.isFinite(price) && price >= 0 ? price : null
+  }
+  if (typeof price === 'string') {
+    const parsed = Number.parseFloat(price.trim().replace(',', '.'))
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+  }
+  return null
+}
+
 function mergeShoppingSuggestions(
   current: ShoppingListItem[],
   suggestions: RawShoppingItem[]
@@ -37,6 +48,7 @@ function mergeShoppingSuggestions(
       section,
       label,
       note: suggestion.note.trim() || undefined,
+      priceEuro: normalizePrice(suggestion.priceEuro),
       checked: existing?.checked ?? false,
       source: 'ai',
       createdAt: existing?.createdAt ?? Date.now(),
@@ -232,7 +244,7 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
     }))
   }
 
-  function handleAddShoppingItem(item: { label: string; section: string }) {
+  function handleAddShoppingItem(item: { label: string; section: string; priceEuro?: number | null }) {
     setBoard((current) => ({
       ...current,
       shoppingList: [
@@ -241,6 +253,7 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
           id: crypto.randomUUID(),
           section: item.section,
           label: item.label,
+          priceEuro: normalizePrice(item.priceEuro),
           checked: false,
           source: 'manual',
           createdAt: Date.now(),
@@ -458,6 +471,7 @@ export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan
       <div className="mt-12">
         <ShoppingListSection
           items={board.shoppingList}
+          partyDetails={board.partyDetails}
           editable
           generating={loadingShopping}
           selectedIdeasCount={board.tiles.filter((tile) => tile.selected).length}

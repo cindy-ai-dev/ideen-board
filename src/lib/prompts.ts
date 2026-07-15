@@ -37,8 +37,9 @@ export const SHOPPING_SCHEMA = {
           section: { type: 'string' },
           label: { type: 'string' },
           note: { type: 'string' },
+          priceEuro: { type: 'number' },
         },
-        required: ['section', 'label', 'note'],
+        required: ['section', 'label', 'note', 'priceEuro'],
         additionalProperties: false,
       },
     },
@@ -56,6 +57,7 @@ export interface RawShoppingItem {
   section: string
   label: string
   note: string
+  priceEuro: number
 }
 
 export interface ShoppingSourceTile {
@@ -80,6 +82,7 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
     date: '',
     time: '',
     guestCount: null,
+    budgetLimitEuro: null,
     guests: [],
   }
 
@@ -89,6 +92,7 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
   const location = normalizeText(safe.location)
   const date = normalizeText(safe.date)
   const time = normalizeText(safe.time)
+  const budgetLimit = typeof safe.budgetLimitEuro === 'number' ? safe.budgetLimitEuro : null
   const guestCount = formatGuestCount(safe.guestCount)
   const guests = safe.guests
     .map((guest) => `${guest.name} (${guest.status})`)
@@ -99,6 +103,7 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
   if (location) lines.push(`Ort: ${location}`)
   if (date || time) lines.push(`Termin: ${[date, time].filter(Boolean).join(' · ')}`)
   if (guestCount) lines.push(`Gästezahl: ${guestCount}`)
+  if (budgetLimit !== null) lines.push(`Budget: ca. ${budgetLimit.toFixed(2).replace('.', ',')} €`)
   if (guests.length > 0) lines.push(`Gästeliste: ${guests.join(', ')}`)
 
   return lines.join('\n')
@@ -180,6 +185,7 @@ export function buildShoppingUserMessage(
     '- Nur Artikel ausgeben, die sich sinnvoll aus den ausgewählten Ideen oder den Party-Details ableiten lassen.',
     '- Konkrete Einkaufsartikel nennen, keine losen Ideensätze.',
     '- Mengen oder Packungsgrößen nennen, wenn sie sich aus Gästezahl oder Anlass ableiten lassen.',
+    '- Für jeden Posten eine grobe Preisschätzung in Euro angeben.',
     '- Liste nach sinnvollen Bereichen gruppieren, z. B. Deko, Essen, Getränke, Geschirr, Backen, Sonstiges.',
     '- Keine doppelten oder sehr ähnlichen Artikel.',
     '- Antworte auf Deutsch.',
@@ -204,6 +210,7 @@ export function buildShoppingUserMessageCompact(
     '- Nur 6 bis 8 konkrete Posten.',
     '- Kurze, knappe Beschreibungen.',
     '- Maximal ein Satz pro Posten.',
+    '- Für jeden Posten eine grobe Preisschätzung in Euro angeben.',
     '- Gruppiere nach Bereich.',
     'Ausgewählte Ideen:',
     ...selectedTiles.map((tile) => `- ${tile.category}: ${tile.title}`),

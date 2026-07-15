@@ -144,7 +144,7 @@ export async function generateShoppingList(
         buildShoppingUserMessage(topic, partyDetails, selectedTiles),
         SHOPPING_SCHEMA,
         'shopping_items',
-        1800
+        2200
       )
       return result.items
     } catch (error) {
@@ -154,7 +154,7 @@ export async function generateShoppingList(
         buildShoppingUserMessageCompact(topic, partyDetails, selectedTiles),
         SHOPPING_SCHEMA,
         'shopping_items',
-        900
+        1200
       )
       return retry.items
     }

@@ -24,6 +24,28 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+function parseNonNegativeInteger(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value >= 0 ? value : null
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number.parseInt(value.trim(), 10)
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : null
+  }
+  return null
+}
+
+function parseNonNegativeNumber(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value >= 0 ? value : null
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number.parseFloat(value.trim().replace(',', '.'))
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+  }
+  return null
+}
+
 function normalizeGuest(value: unknown): Guest | null {
   if (!isObject(value)) return null
   const name = typeof value.name === 'string' ? value.name.trim() : ''
@@ -43,13 +65,8 @@ function normalizePartyDetails(value: unknown): PartyDetails {
   const fallback = createEmptyPartyDetails()
   if (!isObject(value)) return fallback
 
-  const guestCountRaw = value.guestCount
-  const guestCount =
-    typeof guestCountRaw === 'number' && Number.isFinite(guestCountRaw) && guestCountRaw >= 0
-      ? guestCountRaw
-      : typeof guestCountRaw === 'string' && guestCountRaw.trim()
-        ? Number.parseInt(guestCountRaw, 10)
-        : null
+  const guestCount = parseNonNegativeInteger(value.guestCount)
+  const budgetLimitEuro = parseNonNegativeNumber(value.budgetLimitEuro)
 
   return {
     forWhom: typeof value.forWhom === 'string' ? value.forWhom : '',
@@ -57,7 +74,8 @@ function normalizePartyDetails(value: unknown): PartyDetails {
     location: typeof value.location === 'string' ? value.location : '',
     date: typeof value.date === 'string' ? value.date : '',
     time: typeof value.time === 'string' ? value.time : '',
-    guestCount: Number.isFinite(guestCount) && guestCount !== null && guestCount >= 0 ? guestCount : null,
+    guestCount,
+    budgetLimitEuro,
     guests: Array.isArray(value.guests)
       ? value.guests.map(normalizeGuest).filter((guest): guest is Guest => guest !== null)
       : [],
@@ -96,6 +114,7 @@ function normalizeShoppingListItem(value: unknown): ShoppingListItem | null {
     section,
     label,
     note: typeof value.note === 'string' && value.note.trim() ? value.note.trim() : undefined,
+    priceEuro: parseNonNegativeNumber(value.priceEuro),
     checked: typeof value.checked === 'boolean' ? value.checked : false,
     source,
     createdAt: typeof value.createdAt === 'number' ? value.createdAt : Date.now(),

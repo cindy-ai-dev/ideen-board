@@ -45,6 +45,22 @@ export function BoardPlanView({
   const hasSelectedIdeas = selectedByCategory.size > 0
   const guestCountLabel =
     typeof board.partyDetails.guestCount === 'number' ? `${board.partyDetails.guestCount}` : '–'
+  const totalShoppingPrice = board.shoppingList.reduce(
+    (sum, item) => sum + (typeof item.priceEuro === 'number' ? item.priceEuro : 0),
+    0
+  )
+  const budgetLimit = board.partyDetails.budgetLimitEuro
+  const euro = new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 2,
+  })
+  const costText =
+    euro.format(totalShoppingPrice)
+  const budgetText =
+    typeof budgetLimit === 'number' && Number.isFinite(budgetLimit)
+      ? `${costText} · Budget ${euro.format(budgetLimit)}`
+      : costText
 
   return (
     <div className="space-y-6 print:space-y-4">
@@ -84,6 +100,7 @@ export function BoardPlanView({
           <InfoCard label="Datum" value={formatPartyDate(board.partyDetails.date, board.partyDetails.time)} />
           <InfoCard label="Uhrzeit" value={board.partyDetails.time || 'Nicht gesetzt'} />
           <InfoCard label="Gästezahl" value={guestCountLabel} />
+          <InfoCard label="Einkaufskosten" value={budgetText} />
         </div>
 
         <div className="grid gap-6 border-t border-orange-100 pt-5 lg:grid-cols-[1.2fr_0.8fr] print:grid-cols-2 print:border-stone-300">
@@ -204,6 +221,7 @@ export function BoardPlanView({
         <div className="border-t border-orange-100 pt-5 print:border-stone-300">
           <ShoppingListSection
             items={board.shoppingList}
+            partyDetails={board.partyDetails}
             selectedIdeasCount={board.tiles.filter((tile) => tile.selected).length}
           />
         </div>

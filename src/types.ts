@@ -28,6 +28,7 @@ export interface PartyDetails {
   date: string
   time: string
   guestCount: number | null
+  budgetLimitEuro: number | null
   guests: Guest[]
 }
 
@@ -36,6 +37,7 @@ export interface ShoppingListItem {
   section: string
   label: string
   note?: string
+  priceEuro?: number | null
   checked: boolean
   source: 'ai' | 'manual'
   createdAt: number
@@ -70,6 +72,7 @@ export function createEmptyPartyDetails(): PartyDetails {
     date: '',
     time: '',
     guestCount: null,
+    budgetLimitEuro: null,
     guests: [],
   }
 }

@@ -96,8 +96,8 @@ export async function askOpenAIShopping(
     retryUserMessage,
     schema: SHOPPING_SCHEMA,
     responseName: 'shopping_items',
-    maxOutputTokens: 1800,
-    retryMaxOutputTokens: 900,
+    maxOutputTokens: 2200,
+    retryMaxOutputTokens: 1200,
   })
   return data.items
 }

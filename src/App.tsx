@@ -16,6 +16,7 @@ function trimPartyDetails(details: PartyDetails): PartyDetails {
     date: details.date,
     time: details.time,
     guestCount: typeof details.guestCount === 'number' ? details.guestCount : null,
+    budgetLimitEuro: typeof details.budgetLimitEuro === 'number' ? details.budgetLimitEuro : null,
     guests: details.guests
       .map((guest) => ({
         ...guest,
