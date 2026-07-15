@@ -68,6 +68,15 @@ export interface PartyScheduleItem {
   createdAt: number
 }
 
+export interface PartyScheduleBackupItem {
+  id: string
+  title: string
+  note?: string
+  minutesFromStart?: number | null
+  source: 'ai' | 'manual'
+  createdAt: number
+}
+
 export interface BoardState {
   topic: string
   partyDetails: PartyDetails
@@ -75,6 +84,7 @@ export interface BoardState {
   shoppingList: ShoppingListItem[]
   planningTasks: PlanningTaskItem[]
   partySchedule: PartyScheduleItem[]
+  partyScheduleBackup: PartyScheduleBackupItem[]
   rsvpToken: string
 }
 
@@ -115,6 +125,7 @@ export function createEmptyBoard(): BoardState {
     shoppingList: [],
     planningTasks: [],
     partySchedule: [],
+    partyScheduleBackup: [],
     rsvpToken: createRsvpToken(),
   }
 }

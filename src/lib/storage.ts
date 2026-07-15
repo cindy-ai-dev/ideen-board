@@ -11,6 +11,7 @@ import {
   type PartyDetails,
   type PlanningTaskItem,
   type PartyScheduleItem,
+  type PartyScheduleBackupItem,
   type ShoppingListItem,
   type Tile,
 } from '../types'
@@ -174,6 +175,21 @@ function normalizePartyScheduleItem(value: unknown): PartyScheduleItem | null {
   }
 }
 
+function normalizePartyScheduleBackupItem(value: unknown): PartyScheduleBackupItem | null {
+  if (!isObject(value)) return null
+  const title = typeof value.title === 'string' ? value.title.trim() : ''
+  if (!title) return null
+  const minutes = parseNonNegativeInteger(value.minutesFromStart)
+  return {
+    id: typeof value.id === 'string' && value.id.trim() ? value.id : crypto.randomUUID(),
+    title,
+    note: typeof value.note === 'string' && value.note.trim() ? value.note.trim() : undefined,
+    minutesFromStart: minutes,
+    source: value.source === 'manual' ? 'manual' : 'ai',
+    createdAt: typeof value.createdAt === 'number' ? value.createdAt : Date.now(),
+  }
+}
+
 function normalizeBoard(raw: unknown, boardId: string): BoardState {
   if (!isObject(raw)) return createEmptyBoard()
 
@@ -205,6 +221,11 @@ function normalizeBoard(raw: unknown, boardId: string): BoardState {
       ? raw.partySchedule
           .map((item) => normalizePartyScheduleItem(item))
           .filter((item): item is PartyScheduleItem => item !== null)
+      : [],
+    partyScheduleBackup: Array.isArray(raw.partyScheduleBackup)
+      ? raw.partyScheduleBackup
+          .map((item) => normalizePartyScheduleBackupItem(item))
+          .filter((item): item is PartyScheduleBackupItem => item !== null)
       : [],
     rsvpToken: typeof raw.rsvpToken === 'string' && raw.rsvpToken.trim() ? raw.rsvpToken : createRsvpToken(),
   }

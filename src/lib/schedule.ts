@@ -1,4 +1,4 @@
-import type { PartyDetails, PartyScheduleItem } from '../types'
+import type { PartyDetails, PartyScheduleBackupItem, PartyScheduleItem } from '../types'
 
 const MS_PER_MINUTE = 60 * 1000
 
@@ -25,7 +25,13 @@ function formatRelative(minutes?: number | null): string {
   return `nach ${hours} Std. ${rest} Min.`
 }
 
-export function sortPartySchedule(items: PartyScheduleItem[]): PartyScheduleItem[] {
+type SortableScheduleItem = Pick<
+  PartyScheduleItem,
+  'id' | 'title' | 'note' | 'minutesFromStart' | 'source' | 'createdAt'
+> &
+  Partial<Pick<PartyScheduleBackupItem, 'id' | 'title' | 'note' | 'minutesFromStart' | 'source' | 'createdAt'>>
+
+export function sortPartySchedule<T extends SortableScheduleItem>(items: T[]): T[] {
   return [...items].sort((left, right) => {
     const leftHas = typeof left.minutesFromStart === 'number' && Number.isFinite(left.minutesFromStart)
     const rightHas = typeof right.minutesFromStart === 'number' && Number.isFinite(right.minutesFromStart)

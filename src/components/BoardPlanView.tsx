@@ -93,6 +93,10 @@ export function BoardPlanView({
       ? `${costText} · Budget ${euro.format(budgetLimit)}`
       : costText
   const sortedSchedule = useMemo(() => sortPartySchedule(board.partySchedule), [board.partySchedule])
+  const sortedBackupSchedule = useMemo(
+    () => sortPartySchedule(board.partyScheduleBackup),
+    [board.partyScheduleBackup]
+  )
 
   return (
     <div className="space-y-6 print:space-y-4">
@@ -215,6 +219,39 @@ export function BoardPlanView({
             </div>
           )}
         </section>
+
+        {sortedBackupSchedule.length > 0 && (
+          <section className="mt-5 rounded-[1.35rem] border border-amber-100 bg-amber-50/60 p-4 print:rounded-none print:border-stone-300 print:bg-white">
+            <h2 className="text-sm font-extrabold uppercase tracking-[0.16em] text-amber-700 print:text-black">
+              Regen-/Backup-Plan
+            </h2>
+            <p className="mt-2 text-sm text-stone-500 print:text-stone-700">
+              Alternativen für schlechtes Wetter oder wenn Outdoor-Punkte nicht stattfinden können.
+            </p>
+            <div className="mt-3 space-y-2">
+              {sortedBackupSchedule.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-2 rounded-2xl border border-amber-100 bg-white px-3 py-2.5 print:border-stone-200 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold text-stone-800">
+                      {item.title}
+                    </span>
+                    {item.note && (
+                      <p className="mt-1 text-xs leading-relaxed text-stone-500 print:text-stone-700">
+                        {item.note}
+                      </p>
+                    )}
+                  </div>
+                  <span className="self-start rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 print:border print:border-stone-300 print:bg-white">
+                    {formatPartyScheduleLabel(item, board.partyDetails)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="border-t border-orange-100 pt-5 print:border-stone-300">
           <div className="flex items-end justify-between gap-3">

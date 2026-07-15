@@ -57,6 +57,7 @@ function buildDuplicateBoardState(source: BoardState): BoardState {
     })),
     planningTasks: [],
     partySchedule: [],
+    partyScheduleBackup: [],
     rsvpToken: '',
   }
 }
@@ -421,6 +422,7 @@ function HostApp() {
                     shoppingList: [],
                     planningTasks: [],
                     partySchedule: [],
+                    partyScheduleBackup: [],
                     rsvpToken: '',
                   })
                   setDialog(null)

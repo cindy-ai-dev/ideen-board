@@ -85,8 +85,21 @@ export const SCHEDULE_SCHEMA = {
         additionalProperties: false,
       },
     },
+    backupItems: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          note: { type: 'string' },
+          minutesFromStart: { type: 'number' },
+        },
+        required: ['title', 'note', 'minutesFromStart'],
+        additionalProperties: false,
+      },
+    },
   },
-  required: ['items'],
+  required: ['items', 'backupItems'],
   additionalProperties: false,
 } as const
 
@@ -112,6 +125,17 @@ export interface RawPartyScheduleItem {
   title: string
   note: string
   minutesFromStart: number
+}
+
+export interface RawPartyScheduleBackupItem {
+  title: string
+  note: string
+  minutesFromStart: number
+}
+
+export interface RawPartyScheduleResponse {
+  items: RawPartyScheduleItem[]
+  backupItems: RawPartyScheduleBackupItem[]
 }
 
 export interface ShoppingSourceTile {
@@ -405,6 +429,9 @@ export function buildScheduleUserMessage(
     '- Wenn eine Party-Uhrzeit gesetzt ist, sollen die Programmpunkte in realen Uhrzeiten verständlich sein; ansonsten arbeite mit Minuten seit Start.',
     '- Verwende für jeden Punkt `minutesFromStart` als ganze Zahl.',
     '- Halte den Plan kompakt und realistisch, keine Überladung.',
+    '- Zusätzlich liefere 2 bis 4 Backup-Punkte für schlechtes Wetter oder ausgefallene Outdoor-Aktivitäten.',
+    '- Gib diese Backup-Punkte als `backupItems` zurück.',
+    '- Die Backup-Punkte sollen kurze Titel und knappe Notizen haben und eher Indoor-Alternativen vorschlagen.',
     '- Antworte auf Deutsch.',
     'Ausgewählte Ideen als Kontext:',
     ...selectedTiles.map(
@@ -429,6 +456,7 @@ export function buildScheduleUserMessageCompact(
     '- Kurze Notizen, maximal ein Satz.',
     '- minutesFromStart als ganze Zahl.',
     '- Alter sowie Vorlieben/Besonderheiten berücksichtigen.',
+    '- Zusätzlich 2 bis 4 Backup-Punkte als `backupItems` für schlechtes Wetter oder Indoor-Alternativen.',
     'Ausgewählte Ideen:',
     ...selectedTiles.map((tile) => `- ${tile.category}: ${tile.title}`),
   ]

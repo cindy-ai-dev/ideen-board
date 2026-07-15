@@ -19,7 +19,7 @@ import {
   buildScheduleUserMessage,
   buildScheduleUserMessageCompact,
   type RawIdea,
-  type RawPartyScheduleItem,
+  type RawPartyScheduleResponse,
   type RawPlanningTask,
   type RawShoppingItem,
   type ShoppingSourceTile,
@@ -220,34 +220,34 @@ export async function generatePartySchedule(
   topic: string,
   partyDetails: PartyDetails,
   selectedTiles: ShoppingSourceTile[]
-): Promise<RawPartyScheduleItem[]> {
+): Promise<RawPartyScheduleResponse> {
   if (import.meta.env.DEV) {
     try {
-      const result = await callOpenAIDirect<{ items: RawPartyScheduleItem[] }>(
+      const result = await callOpenAIDirect<RawPartyScheduleResponse>(
         SYSTEM_SCHEDULE,
         buildScheduleUserMessage(topic, partyDetails, selectedTiles),
         SCHEDULE_SCHEMA,
         'party_schedule',
         1800
       )
-      return result.items
+      return result
     } catch (error) {
       if (!isTruncatedJsonError(error)) throw error
-      const retry = await callOpenAIDirect<{ items: RawPartyScheduleItem[] }>(
+      const retry = await callOpenAIDirect<RawPartyScheduleResponse>(
         SYSTEM_SCHEDULE,
         buildScheduleUserMessageCompact(topic, partyDetails, selectedTiles),
         SCHEDULE_SCHEMA,
         'party_schedule',
         1000
       )
-      return retry.items
+      return retry
     }
   }
 
-  const response = await callProxy<{ items: RawPartyScheduleItem[] }>('/api/schedule', {
+  const response = await callProxy<RawPartyScheduleResponse>('/api/schedule', {
     topic,
     partyDetails,
     selectedTiles,
   })
-  return response.items
+  return response
 }

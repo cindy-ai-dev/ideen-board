@@ -1,5 +1,13 @@
 import OpenAI from 'openai'
-import { IDEAS_SCHEMA, MODEL, SCHEDULE_SCHEMA, TASKS_SCHEMA, type RawIdea, type RawPlanningTask, type RawPartyScheduleItem } from '../src/lib/prompts.js'
+import {
+  IDEAS_SCHEMA,
+  MODEL,
+  SCHEDULE_SCHEMA,
+  TASKS_SCHEMA,
+  type RawIdea,
+  type RawPlanningTask,
+  type RawPartyScheduleResponse,
+} from '../src/lib/prompts.js'
 import {
   SHOPPING_SCHEMA,
   type RawShoppingItem,
@@ -123,8 +131,8 @@ export async function askOpenAISchedule(
   system: string,
   userMessage: string,
   retryUserMessage: string
-): Promise<RawPartyScheduleItem[]> {
-  const data = await askOpenAIJsonWithRetry<{ items: RawPartyScheduleItem[] }>({
+): Promise<RawPartyScheduleResponse> {
+  const data = await askOpenAIJsonWithRetry<RawPartyScheduleResponse>({
     system,
     userMessage,
     retryUserMessage,
@@ -133,5 +141,5 @@ export async function askOpenAISchedule(
     maxOutputTokens: 1800,
     retryMaxOutputTokens: 1000,
   })
-  return data.items
+  return data
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { PartyDetails, PartyScheduleItem } from '../types'
+import type { PartyDetails, PartyScheduleBackupItem, PartyScheduleItem } from '../types'
 import { formatPartyScheduleLabel, sortPartySchedule } from '../lib/schedule'
 
 function parseMinutes(value: string): number | null {
@@ -11,9 +11,12 @@ function parseMinutes(value: string): number | null {
 
 interface Props {
   items: PartyScheduleItem[]
+  backupItems?: PartyScheduleBackupItem[]
   partyDetails: PartyDetails
   editable?: boolean
   generating?: boolean
+  backupOpen?: boolean
+  onToggleBackupOpen?: () => void
   onGenerate?: () => void
   onAddItem?: (item: { title: string; note?: string; minutesFromStart?: number | null }) => void
   onUpdateItem?: (id: string, patch: { title?: string; note?: string; minutesFromStart?: number | null }) => void
@@ -22,9 +25,12 @@ interface Props {
 
 export function PartyScheduleSection({
   items,
+  backupItems = [],
   partyDetails,
   editable = false,
   generating = false,
+  backupOpen = false,
+  onToggleBackupOpen,
   onGenerate,
   onAddItem,
   onUpdateItem,
@@ -35,6 +41,7 @@ export function PartyScheduleSection({
   const [minutesFromStart, setMinutesFromStart] = useState('')
 
   const sorted = useMemo(() => sortPartySchedule(items), [items])
+  const sortedBackup = useMemo(() => sortPartySchedule(backupItems), [backupItems])
   const hasPartyTime = Boolean(partyDetails.date && partyDetails.time)
 
   function handleAdd() {
@@ -185,6 +192,52 @@ export function PartyScheduleSection({
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {sortedBackup.length > 0 && (
+        <div className="mt-5">
+          <button
+            onClick={onToggleBackupOpen}
+            className="flex w-full items-center justify-between rounded-[1.35rem] border border-amber-100 bg-amber-50/60 px-4 py-3 text-left transition hover:bg-amber-50 print:hidden"
+          >
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-600 print:text-stone-500">
+                Regen-/Backup-Plan
+              </p>
+              <p className="mt-1 text-sm font-medium text-stone-700">
+                {backupOpen ? 'Backup-Plan ausblenden' : 'Regen-/Backup-Plan anzeigen'}
+              </p>
+            </div>
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-700 shadow-sm print:border print:border-stone-300">
+              {sortedBackup.length} Vorschläge
+            </span>
+          </button>
+
+          {backupOpen && (
+            <div className="mt-3 space-y-2 print:block">
+              {sortedBackup.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-2 rounded-2xl border border-amber-100 bg-amber-50/40 px-3 py-3 print:border-stone-200 print:bg-white sm:flex-row sm:items-start"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-stone-800">{item.title}</p>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-700 shadow-sm">
+                        {formatPartyScheduleLabel(item, partyDetails)}
+                      </span>
+                    </div>
+                    {item.note && (
+                      <p className="mt-1 text-sm leading-relaxed text-stone-600 print:text-stone-700">
+                        {item.note}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>

@@ -40,12 +40,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const items = await askOpenAISchedule(
+    const { items, backupItems } = await askOpenAISchedule(
       SYSTEM_SCHEDULE,
       buildScheduleUserMessage(topic, partyDetails, selectedTiles),
       buildScheduleUserMessageCompact(topic, partyDetails, selectedTiles)
     )
-    res.status(200).json({ items })
+    res.status(200).json({ items, backupItems })
   } catch (error) {
     console.error('schedule API failed', {
       topic,

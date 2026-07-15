@@ -180,13 +180,22 @@ function mergePlanningSuggestions(
   return next
 }
 
+type ScheduleLikeItem = {
+  id: string
+  title: string
+  note?: string
+  minutesFromStart?: number | null
+  source: 'ai' | 'manual'
+  createdAt: number
+}
+
 function mergeScheduleSuggestions(
-  current: { id: string; title: string; note?: string; minutesFromStart?: number | null; source: 'ai' | 'manual'; createdAt: number }[],
+  current: ScheduleLikeItem[],
   suggestions: { title: string; note: string; minutesFromStart: number }[]
-) {
+): ScheduleLikeItem[] {
   const currentByKey = new Map(current.map((item) => [item.title.trim().toLowerCase(), item]))
   const manualItems = current.filter((item) => item.source === 'manual')
-  const next = [...manualItems]
+  const next: ScheduleLikeItem[] = [...manualItems]
   const seen = new Set(next.map((item) => item.title.trim().toLowerCase()))
 
   for (const suggestion of suggestions) {
@@ -235,6 +244,7 @@ export function BoardView({
   const [loadingShopping, setLoadingShopping] = useState(false)
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [loadingSchedule, setLoadingSchedule] = useState(false)
+  const [scheduleBackupOpen, setScheduleBackupOpen] = useState(false)
   const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
   const [reminderOpen, setReminderOpen] = useState(false)
   const [reminderCopyState, setReminderCopyState] = useState<'idle' | 'copied'>('idle')
@@ -488,10 +498,11 @@ export function BoardView({
     setError(null)
     setLoadingSchedule(true)
     try {
-      const items = await generatePartySchedule(board.topic, board.partyDetails, selectedTiles)
+      const { items, backupItems } = await generatePartySchedule(board.topic, board.partyDetails, selectedTiles)
       setBoard((current) => ({
         ...current,
         partySchedule: mergeScheduleSuggestions(current.partySchedule, items),
+        partyScheduleBackup: mergeScheduleSuggestions(current.partyScheduleBackup, backupItems),
       }))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ablaufplan konnte nicht geladen werden')
@@ -619,6 +630,10 @@ export function BoardView({
       ...current,
       partySchedule: current.partySchedule.filter((item) => item.id !== id),
     }))
+  }
+
+  function handleToggleScheduleBackupSection() {
+    setScheduleBackupOpen((current) => !current)
   }
 
   function handleRemovePlanningTask(id: string) {
@@ -1084,9 +1099,12 @@ export function BoardView({
         <div className="mt-12">
           <PartyScheduleSection
             items={board.partySchedule}
+            backupItems={board.partyScheduleBackup}
             partyDetails={board.partyDetails}
             editable
             generating={loadingSchedule}
+            backupOpen={scheduleBackupOpen}
+            onToggleBackupOpen={handleToggleScheduleBackupSection}
             onGenerate={handleGenerateSchedule}
             onAddItem={handleAddScheduleItem}
             onUpdateItem={handleUpdateScheduleItem}
