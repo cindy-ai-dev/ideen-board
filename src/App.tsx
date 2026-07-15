@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useBoards } from './lib/storage'
 import { BoardView } from './components/BoardView'
+import { BoardPlanView } from './components/BoardPlanView'
 import { NameDialog } from './components/NameDialog'
 import { PartyDetailsFields } from './components/PartyDetailsFields'
 import { createEmptyPartyDetails, type PartyDetails } from './types'
@@ -43,10 +44,29 @@ function formatPartyDate(details: PartyDetails): string {
   return `${datePart}, ${details.time} Uhr`
 }
 
+function getViewFromUrl(): 'board' | 'plan' {
+  if (typeof window === 'undefined') return 'board'
+  const params = new URLSearchParams(window.location.search)
+  return params.get('view') === 'plan' ? 'plan' : 'board'
+}
+
+function setViewInUrl(view: 'board' | 'plan') {
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  if (view === 'plan') url.searchParams.set('view', 'plan')
+  else url.searchParams.delete('view')
+  window.history.replaceState({}, '', url)
+}
+
 export default function App() {
   const { boards, activeId, setActiveId, createBoard, renameBoard, removeBoard } = useBoards()
   const [dialog, setDialog] = useState<'new' | 'rename' | null>(null)
   const [newBoardDetails, setNewBoardDetails] = useState<PartyDetails>(createEmptyPartyDetails())
+  const [view, setView] = useState<'board' | 'plan'>(() => getViewFromUrl())
+
+  useEffect(() => {
+    setViewInUrl(view)
+  }, [view])
 
   const active = boards.find((b) => b.id === activeId) ?? boards[0] ?? null
   const boardSummaries = useMemo(() => {
@@ -79,7 +99,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-      <header className="mb-7 rounded-[2rem] border border-white/80 bg-white/75 px-6 py-7 shadow-[0_12px_40px_rgba(119,75,43,0.10)] backdrop-blur sm:px-9 sm:py-8">
+      <header className={`mb-7 rounded-[2rem] border border-white/80 bg-white/75 px-6 py-7 shadow-[0_12px_40px_rgba(119,75,43,0.10)] backdrop-blur sm:px-9 sm:py-8 ${view === 'plan' ? 'hidden' : ''}`}>
         <p className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-orange-500">Planen · Sammeln · Feiern</p>
         <h1 className="text-4xl font-extrabold tracking-tight text-stone-800 sm:text-5xl">Ideen-Board</h1>
         <p className="mt-3 max-w-xl text-base leading-relaxed text-stone-500">
@@ -87,7 +107,7 @@ export default function App() {
         </p>
       </header>
 
-      <section className="mb-8 rounded-[1.85rem] border border-orange-100 bg-white/75 p-5 shadow-[0_12px_35px_rgba(119,75,43,0.08)] backdrop-blur">
+      <section className={`mb-8 rounded-[1.85rem] border border-orange-100 bg-white/75 p-5 shadow-[0_12px_35px_rgba(119,75,43,0.08)] backdrop-blur ${view === 'plan' ? 'hidden' : ''}`}>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">
@@ -140,7 +160,7 @@ export default function App() {
       </section>
 
       {/* Board-Leiste: ein Pill pro Board + Verwaltung */}
-      <div className="mb-10 flex flex-wrap items-center gap-2.5 rounded-2xl border border-orange-100 bg-white/65 p-3 shadow-sm backdrop-blur">
+      <div className={`mb-10 flex flex-wrap items-center gap-2.5 rounded-2xl border border-orange-100 bg-white/65 p-3 shadow-sm backdrop-blur ${view === 'plan' ? 'hidden' : ''}`}>
         {boards.map((b) => (
           <button
             key={b.id}
@@ -180,15 +200,27 @@ export default function App() {
 
       {/* key={activeId}: beim Board-Wechsel wird die Ansicht komplett neu
           aufgebaut und lädt sauber den Stand des gewählten Boards */}
-      {active ? (
-        <BoardView key={activeId} boardId={activeId} />
+      {view === 'board' ? (
+        active ? (
+          <BoardView key={activeId} boardId={activeId} onOpenPlan={() => setView('plan')} />
+        ) : (
+          <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
+            Lade Boards…
+          </div>
+        )
+      ) : active ? (
+        <BoardPlanView
+          key={`${activeId}:plan`}
+          boardId={activeId}
+          onBack={() => setView('board')}
+        />
       ) : (
         <div className="rounded-[2rem] border border-dashed border-orange-200 bg-white/60 py-24 text-center text-stone-400">
           Lade Boards…
         </div>
       )}
 
-      {dialog === 'new' && (
+      {dialog === 'new' && view === 'board' && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/30 p-4 backdrop-blur-sm"
           onClick={() => setDialog(null)}

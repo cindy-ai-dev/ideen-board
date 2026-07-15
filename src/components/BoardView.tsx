@@ -11,7 +11,7 @@ import { PartyDetailsFields } from './PartyDetailsFields'
 // Die komplette Ansicht EINES Boards. Wird in App per key={boardId}
 // eingebunden – beim Board-Wechsel baut React die Komponente neu auf
 // und useBoard lädt sauber den Stand des neuen Boards.
-export function BoardView({ boardId }: { boardId: string }) {
+export function BoardView({ boardId, onOpenPlan }: { boardId: string; onOpenPlan?: () => void }) {
   const [board, setBoard] = useBoard(boardId)
   const [urlInput, setUrlInput] = useState('')
   const [loadingIdeas, setLoadingIdeas] = useState(false)
@@ -186,6 +186,15 @@ export function BoardView({ boardId }: { boardId: string }) {
         </div>
 
         <PartyDetailsFields value={board.partyDetails} onChange={updatePartyDetails} />
+
+        <div className="mt-5 flex flex-wrap justify-end gap-2 print:hidden">
+          <button
+            onClick={onOpenPlan}
+            className="rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700"
+          >
+            Gesamtplan ansehen
+          </button>
+        </div>
       </section>
 
       <div className="mb-12 flex flex-col gap-3 rounded-[1.75rem] border border-white bg-white/80 p-4 shadow-[0_12px_35px_rgba(119,75,43,0.08)] sm:p-5 lg:flex-row">
