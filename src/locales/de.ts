@@ -72,6 +72,7 @@ const de = {
     subtitle: 'Diese Angaben werden gespeichert und als Kontext für die KI genutzt.',
     guestSubtitle: 'Hier verwaltest du die Gästeliste und den RSVP-Link.',
     partyAtAGlance: 'Party auf einen Blick',
+    openFullPlan: 'Vollständigen Plan öffnen',
     noDetails: 'Noch keine Party-Details eingetragen.',
     weatherTitle: 'Wettervorhersage',
     weatherLoading: 'Lade Wettervorhersage …',

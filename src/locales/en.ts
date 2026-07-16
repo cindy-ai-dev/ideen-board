@@ -72,6 +72,7 @@ const en = {
     subtitle: 'These details are saved and used as context for AI.',
     guestSubtitle: 'Here you manage the guest list and the RSVP link.',
     partyAtAGlance: 'Party at a glance',
+    openFullPlan: 'Open full plan',
     noDetails: 'No party details entered yet.',
     weatherTitle: 'Weather forecast',
     weatherLoading: 'Loading weather forecast…',
