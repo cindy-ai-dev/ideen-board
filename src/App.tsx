@@ -184,14 +184,20 @@ function BoardAreaNav({
 function getRsvpTokenFromUrl(): string | null {
   if (typeof window === 'undefined') return null
   const params = new URLSearchParams(window.location.search)
-  const token = params.get('rsvp')?.trim()
+  const token =
+    params.get('rsvp')?.trim() ||
+    params.get('token')?.trim() ||
+    params.get('rsvpToken')?.trim()
   return token ? token : null
 }
 
 function getRsvpBoardIdFromUrl(): string | null {
   if (typeof window === 'undefined') return null
   const params = new URLSearchParams(window.location.search)
-  const boardId = params.get('board')?.trim()
+  const boardId =
+    params.get('board')?.trim() ||
+    params.get('boardId')?.trim() ||
+    params.get('id')?.trim()
   return boardId ? boardId : null
 }
 

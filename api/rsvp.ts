@@ -36,10 +36,12 @@ function publicPartyDetails(board: Awaited<ReturnType<typeof getBoardByRsvpToken
 }
 
 async function loadRsvpBoard(token: string, boardId: string | null) {
+  if (boardId) {
+    const byBoard = await getBoard(boardId)
+    if (byBoard) return byBoard
+  }
   const byToken = await getBoardByRsvpToken(token)
-  if (byToken) return byToken
-  if (!boardId) return null
-  return getBoard(boardId)
+  return byToken
 }
 
 function normalizeOptionalText(value: unknown): string | undefined {
@@ -83,19 +85,32 @@ function upsertGuest(
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const token = typeof req.query.token === 'string' ? req.query.token.trim() : ''
-  const boardId = typeof req.query.board === 'string' ? req.query.board.trim() : ''
+  const token =
+    (typeof req.query.token === 'string' ? req.query.token.trim() : '') ||
+    (typeof req.query.rsvp === 'string' ? req.query.rsvp.trim() : '') ||
+    (typeof req.query.rsvpToken === 'string' ? req.query.rsvpToken.trim() : '')
+  const boardId =
+    (typeof req.query.board === 'string' ? req.query.board.trim() : '') ||
+    (typeof req.query.boardId === 'string' ? req.query.boardId.trim() : '') ||
+    (typeof req.query.id === 'string' ? req.query.id.trim() : '')
   if (!token) {
     res.status(400).json({ error: 'Ungültiger RSVP-Link' })
     return
   }
 
   try {
+    console.log('[api/rsvp] request', { method: req.method, token, boardId })
     const board = await loadRsvpBoard(token, boardId || null)
     if (!board) {
+      console.log('[api/rsvp] board not found', { token, boardId })
       res.status(404).json({ error: 'Einladung nicht gefunden' })
       return
     }
+    console.log('[api/rsvp] board loaded', {
+      id: board.id,
+      hasToken: typeof board.data.rsvpToken === 'string' && board.data.rsvpToken.trim().length > 0,
+      party: board.data.partyDetails.forWhom,
+    })
 
     if (req.method === 'GET') {
       res.status(200).json({
@@ -135,6 +150,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const saved = await upsertBoard(nextBoard.id, nextBoard.name, nextBoard.data)
+      console.log('[api/rsvp] guest saved', {
+        boardId: saved.id,
+        guest: name,
+        status,
+      })
       res.status(200).json({
         ok: true,
         name,
@@ -150,6 +170,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.status(405).json({ error: 'Nur GET und PUT erlaubt' })
   } catch {
+    console.log('[api/rsvp] unexpected error', { token, boardId })
     res.status(502).json({ error: 'RSVP konnte nicht gespeichert werden' })
   }
 }

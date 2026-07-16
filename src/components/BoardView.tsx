@@ -311,42 +311,52 @@ export function BoardView({
     }
   }, [])
 
-  function ensureRsvpToken(): string {
+  async function ensureRsvpToken(): Promise<string> {
     let token = board.rsvpToken.trim()
     if (!token) {
       token = createRsvpToken()
       const nextBoard = { ...board, rsvpToken: token }
       setBoard(nextBoard)
-      void saveBoardRemote(
-        boardId,
-        nextBoard.partyDetails.forWhom.trim() || nextBoard.topic.trim() || 'Neues Board',
-        nextBoard
-      ).catch(() => {
+      try {
+        await saveBoardRemote(
+          boardId,
+          nextBoard.partyDetails.forWhom.trim() || nextBoard.topic.trim() || 'Neues Board',
+          nextBoard
+        )
+      } catch {
         // Token bleibt lokal nutzbar und wird beim nächsten Autosave mitgespeichert.
-      })
+      }
     }
     return token
   }
 
-  function buildRsvpUrl() {
-    const token = ensureRsvpToken()
-    return `${window.location.origin}${window.location.pathname}?rsvp=${encodeURIComponent(token)}&board=${encodeURIComponent(boardId)}`
+  async function buildRsvpUrl(token?: string) {
+    const safeToken = token ?? (await ensureRsvpToken())
+    const url = new URL(window.location.href)
+    url.search = ''
+    url.searchParams.set('rsvp', safeToken)
+    url.searchParams.set('token', safeToken)
+    url.searchParams.set('rsvpToken', safeToken)
+    url.searchParams.set('board', boardId)
+    url.searchParams.set('boardId', boardId)
+    return url.toString()
   }
 
-  function buildRsvpShareTextForBoard() {
+  async function buildRsvpShareTextForBoard(token?: string) {
     const partyName = board.partyDetails.forWhom.trim() || board.topic.trim() || 'deiner Party'
     const partyDate = formatPartyDate(board.partyDetails.date, board.partyDetails.time)
     const partyAddress = formatPartyAddress(board.partyDetails.streetAddress, board.partyDetails.city)
+    const rsvpUrl = await buildRsvpUrl(token)
     return buildRsvpShareText({
       partyName,
       partyDate,
       partyAddress,
-      rsvpUrl: buildRsvpUrl(),
+      rsvpUrl,
     })
   }
 
-  function openReminderDialog() {
-    const token = ensureRsvpToken()
+  async function openReminderDialog() {
+    const token = await ensureRsvpToken()
     const partyName = board.partyDetails.forWhom.trim() || board.topic.trim() || 'deine Party'
     const partyDate = formatPartyDate(board.partyDetails.date, board.partyDetails.time)
     const partyAddress = formatPartyAddress(board.partyDetails.streetAddress, board.partyDetails.city)
@@ -356,7 +366,7 @@ export function BoardView({
       partyDate,
       partyAddress: partyAddress || undefined,
       responseDeadline: deadline,
-      rsvpUrl: `${window.location.origin}${window.location.pathname}?rsvp=${encodeURIComponent(token)}&board=${encodeURIComponent(boardId)}`,
+      rsvpUrl: await buildRsvpUrl(token),
     })
     setReminderText(text)
     setReminderCopyState('idle')
@@ -419,7 +429,7 @@ export function BoardView({
   }
 
   async function handleShareRsvpLink() {
-    const url = buildRsvpUrl()
+    const url = await buildRsvpUrl()
     try {
       await navigator.clipboard.writeText(url)
       setShareState('copied')
@@ -464,8 +474,8 @@ export function BoardView({
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  function handleShareRsvpLinkWhatsApp() {
-    handleOpenWhatsApp(buildRsvpShareTextForBoard())
+  async function handleShareRsvpLinkWhatsApp() {
+    handleOpenWhatsApp(await buildRsvpShareTextForBoard())
   }
 
   async function handleGenerateShoppingList() {

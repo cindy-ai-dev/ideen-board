@@ -367,6 +367,10 @@ export function loadBoard(boardId: string): BoardState {
   return readBoardCache(boardId)
 }
 
+export function saveBoardCache(boardId: string, state: BoardState) {
+  writeBoardCache(boardId, withRsvpToken(state))
+}
+
 // Verwaltet die Board-Liste + welches Board gerade aktiv ist.
 // Beides wird im localStorage als schneller Cache gespiegelt und in Postgres
 // synchron gehalten.
