@@ -16,6 +16,72 @@ interface Props {
   showCalendar?: boolean
 }
 
+type ThemeTemplateKey =
+  | 'none'
+  | 'dinosaur'
+  | 'princess'
+  | 'football'
+  | 'space'
+  | 'pirates'
+  | 'zoo'
+
+const THEME_TEMPLATES: Array<{
+  key: ThemeTemplateKey
+  emoji: string
+  labelDe: string
+  labelEn: string
+}> = [
+  {
+    key: 'dinosaur',
+    emoji: '🦖',
+    labelDe: 'Dinosaurier',
+    labelEn: 'Dinosaurs',
+  },
+  {
+    key: 'princess',
+    emoji: '👑',
+    labelDe: 'Prinzessin / Einhorn',
+    labelEn: 'Princess / unicorn',
+  },
+  {
+    key: 'football',
+    emoji: '⚽',
+    labelDe: 'Fußball',
+    labelEn: 'Football',
+  },
+  {
+    key: 'space',
+    emoji: '🚀',
+    labelDe: 'Weltraum',
+    labelEn: 'Space',
+  },
+  {
+    key: 'pirates',
+    emoji: '🏴‍☠️',
+    labelDe: 'Piraten',
+    labelEn: 'Pirates',
+  },
+  {
+    key: 'zoo',
+    emoji: '🦁',
+    labelDe: 'Tiere / Zoo',
+    labelEn: 'Animals / zoo',
+  },
+]
+
+function normalizeThemeLabel(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function isThemeTemplateMatch(theme: string, template: (typeof THEME_TEMPLATES)[number]): boolean {
+  const normalized = normalizeThemeLabel(theme)
+  if (!normalized) return template.key === 'none'
+  return (
+    normalized === normalizeThemeLabel(template.labelDe) ||
+    normalized === normalizeThemeLabel(template.labelEn)
+  )
+}
+
 function escapeIcsText(value: string): string {
   return value
     .replace(/\\/g, '\\\\')
@@ -119,6 +185,7 @@ export function PartyDetailsFields({
   showCalendar = true,
 }: Props) {
   const { t } = useTranslation()
+  const currentLanguage = i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'de'
   const [guestName, setGuestName] = useState('')
   const [guestAllergies, setGuestAllergies] = useState('')
   const [guestPersonCount, setGuestPersonCount] = useState('1')
@@ -146,6 +213,14 @@ export function PartyDetailsFields({
     }
     const parsed = Number.parseFloat(normalized)
     updateField('budgetLimitEuro', Number.isFinite(parsed) && parsed >= 0 ? parsed : null)
+  }
+
+  function getTemplateLabel(template: (typeof THEME_TEMPLATES)[number]): string {
+    return currentLanguage === 'en' ? template.labelEn : template.labelDe
+  }
+
+  function selectTheme(template: (typeof THEME_TEMPLATES)[number] | null) {
+    updateField('theme', template ? getTemplateLabel(template) : '')
   }
 
   function handleAge(nextValue: string) {
@@ -226,7 +301,45 @@ export function PartyDetailsFields({
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
             />
           </label>
-          <label className="flex flex-col gap-1.5">
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-semibold text-stone-600">{t('details.themePickerTitle')}</span>
+              <span className="text-xs text-stone-400">{t('details.themePickerHint')}</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <button
+                type="button"
+                onClick={() => selectTheme(null)}
+                className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                  !value.theme.trim()
+                    ? 'border-orange-400 bg-orange-500 text-white shadow-sm shadow-orange-200'
+                    : 'border-orange-100 bg-orange-50/50 text-stone-700 hover:border-orange-200 hover:bg-orange-50'
+                }`}
+              >
+                <span className="text-xl">✨</span>
+                <span className="text-sm font-semibold leading-tight">{t('details.themeTemplateNone')}</span>
+              </button>
+              {THEME_TEMPLATES.map((template) => {
+                const active = isThemeTemplateMatch(value.theme, template)
+                return (
+                  <button
+                    key={template.key}
+                    type="button"
+                    onClick={() => selectTheme(template)}
+                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                      active
+                        ? 'border-orange-400 bg-orange-500 text-white shadow-sm shadow-orange-200'
+                        : 'border-orange-100 bg-orange-50/50 text-stone-700 hover:border-orange-200 hover:bg-orange-50'
+                    }`}
+                  >
+                    <span className="text-xl">{template.emoji}</span>
+                    <span className="text-sm font-semibold leading-tight">{getTemplateLabel(template)}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <label className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
             <span className="text-sm font-semibold text-stone-600">{t('details.theme')}</span>
             <input
               value={value.theme}

@@ -291,7 +291,7 @@ function buildContextBlock(topic: string, details?: PartyDetails | null, languag
 
 const SYSTEM_START_BASE =
   'Du bist ein kreativer Planungs-Assistent für Partyplanung. Der User sammelt Ideen zu ' +
-  'einem konkreten Anlass auf einem visuellen Board. Nutze das Motto, falls vorhanden, als ' +
+  'einem konkreten Anlass auf einem visuellen Board. Nutze das Motto bzw. das gewählte Thema, falls vorhanden, als ' +
   'wichtigsten kreativen Leitfaden und richte Deko-, Spiele- und Essensideen besonders daran aus. ' +
   'Nutze danach die Party-Details als echten Kontext: Berücksichtige Anlass, Alter, Vorlieben, Ort, ' +
   'Termin, Gästezahl und die Gästeliste. Bei Kinderpartys sollen die Ideen altersgerecht sein; bei größeren ' +
@@ -302,7 +302,7 @@ const SYSTEM_START_BASE =
 const SYSTEM_MORE_BASE =
   'Du bist ein kreativer Planungs-Assistent für Partyplanung. Der User sammelt Ideen zu einem ' +
   'konkreten Anlass auf einem visuellen Board und möchte Nachschub für eine bestimmte Kategorie. ' +
-  'Nutze das Motto, falls vorhanden, als wichtigsten Kontext und bleibe bei derselben Party. Danach ' +
+  'Nutze das Motto bzw. das gewählte Thema, falls vorhanden, als wichtigsten Kontext und bleibe bei derselben Party. Danach ' +
   'nutze die Party-Details als Kontext, inklusive Alter und Vorlieben/Besonderheiten. Erzeuge 3 bis 5 neue Ideen ' +
   'NUR für die genannte Kategorie. Wiederhole keine der bereits vorhandenen Ideen und schlage nichts ' +
   'sehr Ähnliches vor. Titel kurz und knackig, Beschreibung 1-2 Sätze mit konkretem Umsetzungstipp.'
@@ -310,7 +310,7 @@ const SYSTEM_MORE_BASE =
 const SYSTEM_SHOPPING_BASE =
   'Du bist ein pragmatischer Einkaufs-Assistent für Partyplanung. Du sollst aus ausgewählten Ideen, ' +
   'Party-Details und Gästezahl eine konkrete, umsetzbare Einkaufsliste machen. Nutze das Motto, ' +
-  'falls vorhanden, als wichtigsten Kontext, dann die übrigen Party-Details inklusive Alter und Vorlieben. ' +
+  'bzw. das gewählte Thema, falls vorhanden, als wichtigsten Kontext, dann die übrigen Party-Details inklusive Alter und Vorlieben. ' +
   'Erzeuge keine vagen Ratschläge, sondern konkrete Einkaufsartikel mit sinnvollen Mengen oder Packungsgrößen, wenn ' +
   'das aus dem Kontext ableitbar ist. Berücksichtige bekannte Allergien oder Unverträglichkeiten ' +
   'und schlage bei Bedarf passende Alternativen vor. Gruppiere die Einträge in passende Bereiche. ' +
@@ -319,7 +319,7 @@ const SYSTEM_SHOPPING_BASE =
 const SYSTEM_TASKS_BASE =
   'Du bist ein pragmatischer Planungs-Assistent für Partyvorbereitung. Du sollst aus Party-Details ' +
   'und ausgewählten Ideen eine konkrete, zeitlich gestaffelte Aufgabenliste machen. Nutze das Motto, ' +
-  'falls vorhanden, als wichtigsten Kontext, dann die übrigen Party-Details inklusive Alter und Vorlieben. ' +
+  'bzw. das gewählte Thema, falls vorhanden, als wichtigsten Kontext, dann die übrigen Party-Details inklusive Alter und Vorlieben. ' +
   'Erzeuge Aufgaben mit praktischen Vorbereitungsschritten, die sich für eine typische Partyplanung eignen. ' +
   'Verteile die Aufgaben über mehrere Zeitpunkte vor der Party, z. B. einige Wochen vorher, 1 Woche vorher, ' +
   '1 Tag vorher und am Party-Tag. Gib für jede Aufgabe einen Wert `daysBeforeParty` an, der angibt, ' +
@@ -330,7 +330,7 @@ const SYSTEM_SCHEDULE_BASE =
   'Du bist ein pragmatischer Planungs-Assistent für den eigentlichen Partytag. Du sollst aus ' +
   'Party-Details und ausgewählten Ideen einen zeitlich strukturierten Ablaufplan für den ' +
   'Partytag selbst machen – also ab Beginn der Party, nicht die Vorbereitung vorher. Nutze das ' +
-  'Motto, falls vorhanden, als wichtigsten kreativen Leitfaden. Berücksichtige außerdem Anlass, ' +
+  'Motto bzw. das gewählte Thema, falls vorhanden, als wichtigsten kreativen Leitfaden. Berücksichtige außerdem Anlass, ' +
   'Alter, Vorlieben/Besonderheiten, Gästezahl und den Ort. Leite aus dem Ort ab, ob die Party ' +
   'eher drinnen oder draußen stattfindet, und plane entsprechend flexibel. Erzeuge 5 bis 8 klare, ' +
   'logische Programmpunkte mit einem guten Flow: Begrüßung/Ankommen, Eröffnung, Hauptaktivität, ' +
