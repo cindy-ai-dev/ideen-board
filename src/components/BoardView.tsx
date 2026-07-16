@@ -284,7 +284,6 @@ export function BoardView({
   // Über welcher Kategorie gerade eine Kachel schwebt (fürs Aufleuchten)
   const [dragOver, setDragOver] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-
   // Kacheln nach Kategorie gruppieren – Reihenfolge: wie sie zuerst auftauchen
   const grouped = useMemo(() => {
     const map = new Map<string, typeof board.tiles>()
@@ -295,6 +294,34 @@ export function BoardView({
     }
     return map
   }, [board.tiles])
+
+  const ideaCategoryOptions = useMemo(() => {
+    const baseCategories = [
+      t('ideas.linkCategory'),
+      t('shopping.section.deco'),
+      t('shopping.section.food'),
+      t('shopping.section.drinks'),
+      t('shopping.section.tableware'),
+      t('shopping.section.baking'),
+      t('shopping.section.partyFavours'),
+      t('shopping.section.games'),
+      t('shopping.section.entertainment'),
+      t('shopping.section.invitation'),
+      t('shopping.section.schedule'),
+      t('shopping.section.shopping'),
+      t('shopping.section.misc'),
+    ]
+    const seen = new Set<string>()
+    const next: string[] = []
+    for (const category of [...baseCategories, ...grouped.keys()]) {
+      const trimmed = category.trim()
+      const normalized = trimmed.toLowerCase()
+      if (!trimmed || seen.has(normalized)) continue
+      seen.add(normalized)
+      next.push(trimmed)
+    }
+    return next
+  }, [grouped, t])
 
   function updatePartyDetails(next: PartyDetails) {
     setBoard((current) => ({
@@ -418,7 +445,7 @@ export function BoardView({
     setError(null)
     setLoadingLink(true)
     try {
-      const tile = await fetchLinkPreview(url, boardId)
+      const tile = await fetchLinkPreview(url, boardId, t('ideas.linkPreviewFallback'))
       setBoard((current) => ({ ...current, tiles: [...current.tiles, tile] }))
       setUrlInput('')
     } catch (e) {
@@ -1234,7 +1261,7 @@ export function BoardView({
       {editor !== null && (
         <TileEditor
           tile={editor === 'new' ? null : editor}
-          categories={[...grouped.keys()]}
+          categories={ideaCategoryOptions}
           onSave={handleEditorSave}
           onClose={() => setEditor(null)}
         />

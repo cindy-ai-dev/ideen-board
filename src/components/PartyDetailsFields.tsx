@@ -101,6 +101,12 @@ function toIcsDateTime(date: string, time: string): string | null {
   )
 }
 
+function toGoogleCalendarDateTime(date: string, time: string): string | null {
+  const parsed = new Date(`${date}T${time}`)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+}
+
 function buildCalendarFile(value: PartyDetails): string | null {
   const start = toIcsDateTime(value.date, value.time)
   if (!start) return null
@@ -158,6 +164,40 @@ function downloadCalendar(value: PartyDetails) {
   link.click()
   link.remove()
   URL.revokeObjectURL(url)
+}
+
+function buildGoogleCalendarUrl(value: PartyDetails): string | null {
+  if (!value.date || !value.time) return null
+  const start = toGoogleCalendarDateTime(value.date, value.time)
+  if (!start) return null
+  const startDate = new Date(`${value.date}T${value.time}`)
+  if (Number.isNaN(startDate.getTime())) return null
+  const endDate = new Date(startDate.getTime() + 3 * 60 * 60 * 1000)
+  const end = endDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+  const title = value.forWhom.trim() || value.theme.trim() || 'Party'
+  const location = formatPartyAddress(value.streetAddress, value.city)
+  const details = [
+    value.theme.trim() ? `${i18n.t('details.theme')}: ${value.theme.trim()}` : '',
+    value.preferences.trim() ? `${i18n.t('details.preferences')}: ${value.preferences.trim()}` : '',
+    `${i18n.t('details.guestCount')}: ${value.guestCount ?? i18n.t('plan.noneSet')}`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title,
+    dates: `${start}/${end}`,
+    details,
+    location,
+  })
+  return `https://calendar.google.com/calendar/render?${params.toString()}`
+}
+
+function openGoogleCalendar(value: PartyDetails) {
+  const url = buildGoogleCalendarUrl(value)
+  if (!url) return
+  window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 function formatEuroInput(value: number | null): string {
@@ -446,20 +486,29 @@ export function PartyDetailsFields({
 
       {showCalendar && (
         <div className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 px-4 py-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               <p className="text-sm font-semibold text-stone-700">{t('details.calendarTitle')}</p>
               <p className="mt-1 text-sm leading-relaxed text-stone-500">
                 {t('details.calendarHint')}
               </p>
             </div>
-            <button
-              onClick={() => downloadCalendar(value)}
-              disabled={!calendarReady}
-              className="rounded-2xl bg-amber-500 px-4 py-2.5 font-semibold text-white shadow-sm shadow-amber-200 transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {t('details.calendarButton')}
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                onClick={() => downloadCalendar(value)}
+                disabled={!calendarReady}
+                className="rounded-2xl bg-amber-500 px-4 py-2.5 font-semibold text-white shadow-sm shadow-amber-200 transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {t('details.calendarAppleButton')}
+              </button>
+              <button
+                onClick={() => openGoogleCalendar(value)}
+                disabled={!calendarReady}
+                className="rounded-2xl border border-amber-200 bg-white px-4 py-2.5 font-semibold text-amber-700 shadow-sm transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {t('details.calendarGoogleButton')}
+              </button>
+            </div>
           </div>
           {!calendarReady && (
             <p className="mt-2 text-xs font-medium text-amber-700">

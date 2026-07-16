@@ -18,9 +18,14 @@ interface Props {
 
 export function TileEditor({ tile, categories, onSave, onClose }: Props) {
   const { t } = useTranslation()
+  const miscCategory = t('shopping.section.misc')
+  const categoryOptions =
+    tile?.category && !categories.some((category) => category.trim().toLowerCase() === tile.category.trim().toLowerCase())
+      ? [tile.category, ...categories]
+      : categories
   const [title, setTitle] = useState(tile?.title ?? '')
   const [description, setDescription] = useState(tile?.description ?? '')
-  const [category, setCategory] = useState(tile?.category ?? categories[0] ?? t('dialog.ownIdeas'))
+  const [category, setCategory] = useState(tile?.category ?? miscCategory ?? categories[0] ?? t('dialog.ownIdeas'))
   const [image, setImage] = useState(tile?.image ?? '')
 
   function handleSave() {
@@ -72,19 +77,21 @@ export function TileEditor({ tile, categories, onSave, onClose }: Props) {
 
           <label className="flex flex-col gap-1">
             <span className="text-sm font-medium text-stone-600">{t('dialog.category')}</span>
-            {/* datalist = Freitext MIT Vorschlägen: bestehende Kategorie wählen
-                oder einfach eine neue eintippen */}
-            <input
-              list="category-options"
+            <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-2.5 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100"
-            />
-            <datalist id="category-options">
-              {categories.map((c) => (
-                <option key={c} value={c} />
+            >
+              {categoryOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
               ))}
-            </datalist>
+              {!categoryOptions.some((c) => c === miscCategory) && (
+                <option value={miscCategory}>{miscCategory}</option>
+              )}
+            </select>
+            <p className="text-xs text-stone-400">{t('dialog.categoryHint')}</p>
           </label>
 
           <label className="flex flex-col gap-1">

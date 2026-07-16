@@ -148,8 +148,9 @@ const de = {
       'z.B. mag Dinosaurier und Fußball · keine lauten Spiele · liebt Einhörner',
     calendarTitle: 'Kalender-Termin',
     calendarHint:
-      'Datum und Uhrzeit eintragen, dann kannst du die Party als `.ics` herunterladen.',
-    calendarButton: 'Zum Kalender hinzufügen',
+      'Datum und Uhrzeit eintragen, dann kannst du die Party als `.ics` herunterladen oder direkt zu Google Kalender hinzufügen.',
+    calendarAppleButton: 'Zu Apple Kalender hinzufügen',
+    calendarGoogleButton: 'Zu Google Kalender hinzufügen',
     calendarMissing: 'Dafür müssen Datum und Uhrzeit ausgefüllt sein.',
     guestListTitle: 'Gästeliste',
     guestListHint: 'Namen hinzufügen und den Status direkt mitpflegen.',
@@ -178,6 +179,8 @@ const de = {
     addLinkPlaceholder: 'Link einwerfen (YouTube, Amazon, …)',
     addLink: '🔗 Hinzufügen',
     ownIdea: '＋ Eigene Idee',
+    linkCategory: 'Links',
+    linkPreviewFallback: 'Vorschau nicht verfügbar – der Link wird trotzdem gespeichert.',
     empty:
       'Noch leer hier. Trag oben die Party-Details ein und hol dir dann ein Ideen-Startset.',
     moreLikeThis: '✨ mehr davon',
@@ -360,6 +363,7 @@ const de = {
     title: 'Titel',
     note: 'Notiz (optional)',
     category: 'Kategorie',
+    categoryHint: 'Wähle eine vorhandene Kategorie oder „Sonstiges“.',
     imageLink: 'Bild-Link (optional)',
   },
 } as const

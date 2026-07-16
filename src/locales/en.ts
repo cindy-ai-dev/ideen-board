@@ -147,8 +147,10 @@ const en = {
     preferencesPlaceholder:
       'e.g. likes dinosaurs and football · no loud games · loves unicorns',
     calendarTitle: 'Calendar event',
-    calendarHint: 'Enter date and time, then you can download the party as `.ics`.',
-    calendarButton: 'Add to calendar',
+    calendarHint:
+      'Enter date and time, then you can download the party as `.ics` or add it directly to Google Calendar.',
+    calendarAppleButton: 'Add to Apple Calendar',
+    calendarGoogleButton: 'Add to Google Calendar',
     calendarMissing: 'Date and time are required for this.',
     guestListTitle: 'Guest list',
     guestListHint: 'Add names and keep the status in sync.',
@@ -177,6 +179,8 @@ const en = {
     addLinkPlaceholder: 'Drop a link here (YouTube, Amazon, …)',
     addLink: '🔗 Add',
     ownIdea: '＋ Own idea',
+    linkCategory: 'Links',
+    linkPreviewFallback: 'Preview unavailable – the link will still be saved.',
     empty: 'Nothing here yet. Add the party details above and get a starter set of ideas.',
     moreLikeThis: '✨ more like this',
     generatingMore: 'Thinking…',
@@ -356,6 +360,7 @@ const en = {
     title: 'Title',
     note: 'Note (optional)',
     category: 'Category',
+    categoryHint: 'Choose an existing category or “Misc”.',
     imageLink: 'Image link (optional)',
   },
 } as const
