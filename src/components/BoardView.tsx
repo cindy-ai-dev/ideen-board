@@ -276,6 +276,7 @@ export function BoardView({
   const [editingDetails, setEditingDetails] = useState(() => isPartyDetailsEmpty(board.partyDetails))
   const shareTimerRef = useRef<number | null>(null)
   const reminderTimerRef = useRef<number | null>(null)
+  const language = i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'de'
   // Welche Kategorie gerade Nachschub lädt (null = keine)
   const [loadingMore, setLoadingMore] = useState<string | null>(null)
   // Editor: 'new' = neue eigene Kachel, Tile = diese Kachel bearbeiten
@@ -367,7 +368,7 @@ export function BoardView({
     setError(null)
     setLoadingIdeas(true)
     try {
-      const ideas = await generateIdeas(board.topic, board.partyDetails, boardId)
+      const ideas = await generateIdeas(board.topic, board.partyDetails, boardId, language)
       setBoard((current) => ({
         ...current,
         topic: current.topic || current.partyDetails.forWhom.trim(),
@@ -388,7 +389,7 @@ export function BoardView({
       const existing = board.tiles
         .filter((t) => t.category === category)
         .map((t) => t.title)
-      const ideas = await generateMoreIdeas(board.topic, board.partyDetails, category, existing, boardId)
+      const ideas = await generateMoreIdeas(board.topic, board.partyDetails, category, existing, boardId, language)
       setBoard((current) => ({
         ...current,
         tiles: [...current.tiles, ...ideas],
@@ -485,7 +486,7 @@ export function BoardView({
     setError(null)
     setLoadingShopping(true)
     try {
-      const suggestions = await generateShoppingList(board.topic, board.partyDetails, selectedTiles)
+      const suggestions = await generateShoppingList(board.topic, board.partyDetails, selectedTiles, language)
       setBoard((current) => ({
         ...current,
         shoppingList: mergeShoppingSuggestions(current.shoppingList, suggestions),
@@ -515,7 +516,7 @@ export function BoardView({
     setError(null)
     setLoadingTasks(true)
     try {
-      const tasks = await generatePlanningTasks(board.topic, board.partyDetails, selectedTiles)
+      const tasks = await generatePlanningTasks(board.topic, board.partyDetails, selectedTiles, language)
       setBoard((current) => ({
         ...current,
         planningTasks: mergePlanningSuggestions(current.planningTasks, tasks),
@@ -544,7 +545,8 @@ export function BoardView({
         board.topic,
         board.partyDetails,
         selectedTiles,
-        wishes
+        wishes,
+        language
       )
       setBoard((current) => ({
         ...current,
@@ -971,7 +973,7 @@ export function BoardView({
 
           {reminderOpen && canPrepareReminder && (
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/35 p-4 backdrop-blur-sm"
+              className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/35 p-4 backdrop-blur-sm sm:items-center"
               onClick={() => {
                 setReminderOpen(false)
                 setReminderCopyState('idle')
@@ -979,10 +981,10 @@ export function BoardView({
               }}
             >
               <div
-                className="w-full max-w-2xl rounded-[2rem] border border-white bg-white p-6 shadow-2xl"
+                className="flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-[2rem] border border-white bg-white p-6 shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="shrink-0 flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">
                       {t('overview.reminderTitle')}
@@ -1006,33 +1008,35 @@ export function BoardView({
                   </button>
                 </div>
 
-                <div className="mt-5 rounded-[1.4rem] border border-orange-100 bg-orange-50/60 p-4">
-                  <p className="text-sm font-semibold text-stone-700">{t('overview.reminderPreview')}</p>
-                  <p className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-stone-700 shadow-sm">
-                    {reminderText}
-                  </p>
-                </div>
+                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1 pt-2">
+                  <div className="rounded-[1.4rem] border border-orange-100 bg-orange-50/60 p-4">
+                    <p className="text-sm font-semibold text-stone-700">{t('overview.reminderPreview')}</p>
+                    <p className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-stone-700 shadow-sm">
+                      {reminderText}
+                    </p>
+                  </div>
 
-                <div className="mt-5 rounded-[1.4rem] border border-orange-100 bg-orange-50/60 p-4">
-                  <p className="text-sm font-semibold text-stone-700">
-                    {t('overview.reminderHowMany', {
-                      count: pendingGuests.length,
-                      plural: pendingGuests.length === 1 ? '' : 'e',
-                    })}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {pendingGuests.map((guest) => (
-                      <span
-                        key={guest.id}
-                        className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-stone-700 shadow-sm"
-                      >
-                        {guest.name}
-                      </span>
-                    ))}
+                  <div className="rounded-[1.4rem] border border-orange-100 bg-orange-50/60 p-4">
+                    <p className="text-sm font-semibold text-stone-700">
+                      {t('overview.reminderHowMany', {
+                        count: pendingGuests.length,
+                        plural: pendingGuests.length === 1 ? '' : 'e',
+                      })}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {pendingGuests.map((guest) => (
+                        <span
+                          key={guest.id}
+                          className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-stone-700 shadow-sm"
+                        >
+                          {guest.name}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                <div className="shrink-0 mt-5 flex flex-col gap-2 sm:flex-row">
                   <button
                     onClick={() => void handleCopyReminderText(reminderText)}
                     className="rounded-2xl bg-orange-500 px-4 py-3 font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600"

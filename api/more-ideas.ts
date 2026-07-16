@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { SYSTEM_MORE, buildMoreUserMessage } from '../src/lib/prompts.js'
+import { buildSystemMorePrompt, buildMoreUserMessage, normalizePromptLanguage } from '../src/lib/prompts.js'
 import { askOpenAI } from './_openai.js'
 
 // POST /api/more-ideas  { topic, partyDetails?, category, existingTitles }  →  { ideas }
@@ -11,6 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const topic = typeof req.body?.topic === 'string' ? req.body.topic.trim() : ''
   const partyDetails = req.body?.partyDetails
   const category = typeof req.body?.category === 'string' ? req.body.category.trim() : ''
+  const language = normalizePromptLanguage(req.body?.language)
   const existingTitles: string[] = Array.isArray(req.body?.existingTitles)
     ? req.body.existingTitles.filter((t: unknown) => typeof t === 'string').slice(0, 100)
     : []
@@ -20,8 +21,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   try {
     const ideas = await askOpenAI(
-      SYSTEM_MORE,
-      buildMoreUserMessage(topic, partyDetails, category, existingTitles)
+      buildSystemMorePrompt(language),
+      buildMoreUserMessage(topic, partyDetails, category, existingTitles, language)
     )
     res.status(200).json({ ideas })
   } catch {

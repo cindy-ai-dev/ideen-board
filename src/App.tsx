@@ -382,26 +382,28 @@ function HostApp() {
 
       {dialog === 'new' && view !== 'plan' && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/30 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/30 p-4 backdrop-blur-sm sm:items-center"
           onClick={() => setDialog(null)}
         >
           <div
-            className="flex w-full max-w-3xl flex-col gap-5 rounded-[1.75rem] border border-white bg-white p-7 shadow-2xl"
+            className="flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-[1.75rem] border border-white bg-white p-7 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div>
+            <div className="shrink-0">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-orange-500">
                 {t('boards.newTitle')}
               </p>
               <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-800">
                 {t('boards.boardTitle')}
               </h2>
-                <p className="mt-2 text-sm leading-relaxed text-stone-500">
+              <p className="mt-2 text-sm leading-relaxed text-stone-500">
                 {t('boards.boardDescription')}
               </p>
             </div>
-            <PartyDetailsFields value={newBoardDetails} onChange={setNewBoardDetails} />
-            <div className="flex justify-end gap-2 pt-1">
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <PartyDetailsFields value={newBoardDetails} onChange={setNewBoardDetails} />
+            </div>
+            <div className="shrink-0 flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setDialog(null)}
                 className="rounded-2xl px-4 py-2.5 font-medium text-stone-600 transition hover:bg-stone-100"

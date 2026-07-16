@@ -1,9 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { askOpenAIShopping } from './_openai.js'
 import {
-  SYSTEM_SHOPPING,
+  buildSystemShoppingPrompt,
   buildShoppingUserMessage,
   buildShoppingUserMessageCompact,
+  normalizePromptLanguage,
   type ShoppingSourceTile,
 } from '../src/lib/prompts.js'
 
@@ -33,6 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const topic = typeof req.body?.topic === 'string' ? req.body.topic.trim() : ''
   const partyDetails = req.body?.partyDetails
   const selectedTiles = parseSelectedTiles(req.body?.selectedTiles).slice(0, 40)
+  const language = normalizePromptLanguage(req.body?.language)
 
   if (topic.length > 300) {
     res.status(400).json({ error: 'Ungültiges Thema' })
@@ -41,9 +43,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const items = await askOpenAIShopping(
-      SYSTEM_SHOPPING,
-      buildShoppingUserMessage(topic, partyDetails, selectedTiles),
-      buildShoppingUserMessageCompact(topic, partyDetails, selectedTiles)
+      buildSystemShoppingPrompt(language),
+      buildShoppingUserMessage(topic, partyDetails, selectedTiles, language),
+      buildShoppingUserMessageCompact(topic, partyDetails, selectedTiles, language)
     )
     res.status(200).json({ items })
   } catch (error) {

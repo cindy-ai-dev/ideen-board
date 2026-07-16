@@ -1,9 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { askOpenAISchedule } from './_openai.js'
 import {
-  SYSTEM_SCHEDULE,
+  buildSystemSchedulePrompt,
   buildScheduleUserMessage,
   buildScheduleUserMessageCompact,
+  normalizePromptLanguage,
   type ShoppingSourceTile,
 } from '../src/lib/prompts.js'
 
@@ -34,6 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const partyDetails = req.body?.partyDetails
   const selectedTiles = parseSelectedTiles(req.body?.selectedTiles).slice(0, 40)
   const wishes = typeof req.body?.wishes === 'string' ? req.body.wishes.trim() : ''
+  const language = normalizePromptLanguage(req.body?.language)
 
   if (topic.length > 300) {
     res.status(400).json({ error: 'Ungültiges Thema' })
@@ -42,9 +44,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { items, backupItems } = await askOpenAISchedule(
-      SYSTEM_SCHEDULE,
-      buildScheduleUserMessage(topic, partyDetails, selectedTiles, wishes),
-      buildScheduleUserMessageCompact(topic, partyDetails, selectedTiles, wishes)
+      buildSystemSchedulePrompt(language),
+      buildScheduleUserMessage(topic, partyDetails, selectedTiles, wishes, language),
+      buildScheduleUserMessageCompact(topic, partyDetails, selectedTiles, wishes, language)
     )
     res.status(200).json({ items, backupItems })
   } catch (error) {

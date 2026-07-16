@@ -2,14 +2,14 @@ import type { PartyDetails, Tile } from '../types'
 import {
   IDEAS_SCHEMA,
   MODEL,
-  SYSTEM_START,
-  SYSTEM_MORE,
   SHOPPING_SCHEMA,
-  SYSTEM_SHOPPING,
   TASKS_SCHEMA,
-  SYSTEM_TASKS,
   SCHEDULE_SCHEMA,
-  SYSTEM_SCHEDULE,
+  buildSystemStartPrompt,
+  buildSystemMorePrompt,
+  buildSystemShoppingPrompt,
+  buildSystemTasksPrompt,
+  buildSystemSchedulePrompt,
   buildStartUserMessage,
   buildMoreUserMessage,
   buildShoppingUserMessage,
@@ -18,6 +18,7 @@ import {
   buildTasksUserMessageCompact,
   buildScheduleUserMessage,
   buildScheduleUserMessageCompact,
+  normalizePromptLanguage,
   type RawIdea,
   type RawPartyScheduleResponse,
   type RawPlanningTask,
@@ -108,16 +109,18 @@ function toTiles(ideas: RawIdea[], boardId: string, forceCategory?: string): Til
 export async function generateIdeas(
   topic: string,
   partyDetails: PartyDetails,
-  boardId: string
+  boardId: string,
+  language: string = 'de'
 ): Promise<Tile[]> {
+  const promptLanguage = normalizePromptLanguage(language)
   const result = import.meta.env.DEV
     ? await callOpenAIDirect<{ ideas: RawIdea[] }>(
-        SYSTEM_START,
-        buildStartUserMessage(topic, partyDetails),
+        buildSystemStartPrompt(promptLanguage),
+        buildStartUserMessage(topic, partyDetails, promptLanguage),
         IDEAS_SCHEMA,
         'ideas'
       )
-    : await callProxy<{ ideas: RawIdea[] }>('/api/ideas', { topic, partyDetails })
+    : await callProxy<{ ideas: RawIdea[] }>('/api/ideas', { topic, partyDetails, language: promptLanguage })
   return toTiles(result.ideas, boardId)
 }
 
@@ -126,12 +129,14 @@ export async function generateMoreIdeas(
   partyDetails: PartyDetails,
   category: string,
   existingTitles: string[],
-  boardId: string
+  boardId: string,
+  language: string = 'de'
 ): Promise<Tile[]> {
+  const promptLanguage = normalizePromptLanguage(language)
   const result = import.meta.env.DEV
     ? await callOpenAIDirect<{ ideas: RawIdea[] }>(
-        SYSTEM_MORE,
-        buildMoreUserMessage(topic, partyDetails, category, existingTitles),
+        buildSystemMorePrompt(promptLanguage),
+        buildMoreUserMessage(topic, partyDetails, category, existingTitles, promptLanguage),
         IDEAS_SCHEMA,
         'ideas'
       )
@@ -140,6 +145,7 @@ export async function generateMoreIdeas(
         partyDetails,
         category,
         existingTitles,
+        language: promptLanguage,
       })
   return toTiles(result.ideas, boardId, category)
 }
@@ -147,13 +153,15 @@ export async function generateMoreIdeas(
 export async function generateShoppingList(
   topic: string,
   partyDetails: PartyDetails,
-  selectedTiles: ShoppingSourceTile[]
+  selectedTiles: ShoppingSourceTile[],
+  language: string = 'de'
 ): Promise<RawShoppingItem[]> {
+  const promptLanguage = normalizePromptLanguage(language)
   if (import.meta.env.DEV) {
     try {
       const result = await callOpenAIDirect<{ items: RawShoppingItem[] }>(
-        SYSTEM_SHOPPING,
-        buildShoppingUserMessage(topic, partyDetails, selectedTiles),
+        buildSystemShoppingPrompt(promptLanguage),
+        buildShoppingUserMessage(topic, partyDetails, selectedTiles, promptLanguage),
         SHOPPING_SCHEMA,
         'shopping_items',
         2200
@@ -162,8 +170,8 @@ export async function generateShoppingList(
     } catch (error) {
       if (!isTruncatedJsonError(error)) throw error
       const retry = await callOpenAIDirect<{ items: RawShoppingItem[] }>(
-        SYSTEM_SHOPPING,
-        buildShoppingUserMessageCompact(topic, partyDetails, selectedTiles),
+        buildSystemShoppingPrompt(promptLanguage),
+        buildShoppingUserMessageCompact(topic, partyDetails, selectedTiles, promptLanguage),
         SHOPPING_SCHEMA,
         'shopping_items',
         1200
@@ -176,6 +184,7 @@ export async function generateShoppingList(
     topic,
     partyDetails,
     selectedTiles,
+    language: promptLanguage,
   })
   return response.items
 }
@@ -183,13 +192,15 @@ export async function generateShoppingList(
 export async function generatePlanningTasks(
   topic: string,
   partyDetails: PartyDetails,
-  selectedTiles: ShoppingSourceTile[]
+  selectedTiles: ShoppingSourceTile[],
+  language: string = 'de'
 ): Promise<RawPlanningTask[]> {
+  const promptLanguage = normalizePromptLanguage(language)
   if (import.meta.env.DEV) {
     try {
       const result = await callOpenAIDirect<{ tasks: RawPlanningTask[] }>(
-        SYSTEM_TASKS,
-        buildTasksUserMessage(topic, partyDetails, selectedTiles),
+        buildSystemTasksPrompt(promptLanguage),
+        buildTasksUserMessage(topic, partyDetails, selectedTiles, promptLanguage),
         TASKS_SCHEMA,
         'planning_tasks',
         2200
@@ -198,8 +209,8 @@ export async function generatePlanningTasks(
     } catch (error) {
       if (!isTruncatedJsonError(error)) throw error
       const retry = await callOpenAIDirect<{ tasks: RawPlanningTask[] }>(
-        SYSTEM_TASKS,
-        buildTasksUserMessageCompact(topic, partyDetails, selectedTiles),
+        buildSystemTasksPrompt(promptLanguage),
+        buildTasksUserMessageCompact(topic, partyDetails, selectedTiles, promptLanguage),
         TASKS_SCHEMA,
         'planning_tasks',
         1200
@@ -212,6 +223,7 @@ export async function generatePlanningTasks(
     topic,
     partyDetails,
     selectedTiles,
+    language: promptLanguage,
   })
   return response.tasks
 }
@@ -220,13 +232,15 @@ export async function generatePartySchedule(
   topic: string,
   partyDetails: PartyDetails,
   selectedTiles: ShoppingSourceTile[],
-  wishes?: string
+  wishes?: string,
+  language: string = 'de'
 ): Promise<RawPartyScheduleResponse> {
+  const promptLanguage = normalizePromptLanguage(language)
   if (import.meta.env.DEV) {
     try {
       const result = await callOpenAIDirect<RawPartyScheduleResponse>(
-        SYSTEM_SCHEDULE,
-        buildScheduleUserMessage(topic, partyDetails, selectedTiles, wishes),
+        buildSystemSchedulePrompt(promptLanguage),
+        buildScheduleUserMessage(topic, partyDetails, selectedTiles, wishes, promptLanguage),
         SCHEDULE_SCHEMA,
         'party_schedule',
         1800
@@ -235,8 +249,8 @@ export async function generatePartySchedule(
     } catch (error) {
       if (!isTruncatedJsonError(error)) throw error
       const retry = await callOpenAIDirect<RawPartyScheduleResponse>(
-        SYSTEM_SCHEDULE,
-        buildScheduleUserMessageCompact(topic, partyDetails, selectedTiles, wishes),
+        buildSystemSchedulePrompt(promptLanguage),
+        buildScheduleUserMessageCompact(topic, partyDetails, selectedTiles, wishes, promptLanguage),
         SCHEDULE_SCHEMA,
         'party_schedule',
         1000
@@ -250,6 +264,7 @@ export async function generatePartySchedule(
     partyDetails,
     selectedTiles,
     wishes,
+    language: promptLanguage,
   })
   return response
 }

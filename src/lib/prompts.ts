@@ -1,10 +1,44 @@
 import type { PartyDetails } from '../types.js'
 import { formatPartyAddress } from './location'
+import de from '../locales/de'
+import en from '../locales/en'
 
 // Gemeinsame Bausteine für die OpenAI-Anfragen. Dieses Modul wird von
 // ZWEI Seiten benutzt: vom Browser (lokale Entwicklung) und von den
 // Server-Funktionen unter /api (veröffentlichte Version). So bleiben
 // Prompts und Schema garantiert identisch.
+
+export type PromptLanguage = 'de' | 'en'
+
+export function normalizePromptLanguage(value?: string | null): PromptLanguage {
+  return typeof value === 'string' && value.toLowerCase().startsWith('en') ? 'en' : 'de'
+}
+
+function pt(language: PromptLanguage, deText: string, enText: string): string {
+  return language === 'en' ? enText : deText
+}
+
+function languageInstruction(language: PromptLanguage): string {
+  return language === 'en' ? 'Respond in English.' : 'Antworte auf Deutsch.'
+}
+
+export function getShoppingSectionLabels(language: PromptLanguage): string[] {
+  const source = language === 'en' ? en : de
+  return [
+    source.shopping.section.deco,
+    source.shopping.section.food,
+    source.shopping.section.drinks,
+    source.shopping.section.tableware,
+    source.shopping.section.baking,
+    source.shopping.section.partyFavours,
+    source.shopping.section.games,
+    source.shopping.section.entertainment,
+    source.shopping.section.invitation,
+    source.shopping.section.schedule,
+    source.shopping.section.shopping,
+    source.shopping.section.misc,
+  ]
+}
 
 export const IDEAS_SCHEMA = {
   type: 'object',
@@ -162,7 +196,7 @@ export function getConfirmedGuestTotal(details?: PartyDetails | null): number {
   }, 0)
 }
 
-export function summarizePartyDetails(details?: PartyDetails | null): string {
+export function summarizePartyDetails(details?: PartyDetails | null, language: PromptLanguage = 'de'): string {
   const safe = details ?? {
     forWhom: '',
     theme: '',
@@ -193,12 +227,17 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
   const guests = safe.guests
     .map((guest) => {
       const allergies = typeof guest.allergies === 'string' && guest.allergies.trim()
-        ? `, Allergien/Unverträglichkeiten: ${guest.allergies.trim()}`
+        ? `, ${pt(language, 'Allergien/Unverträglichkeiten', 'Allergies / intolerances')}: ${guest.allergies.trim()}`
         : ''
       const people = guest.status === 'zugesagt'
-        ? `, ${typeof guest.personCount === 'number' && guest.personCount > 0 ? guest.personCount : 1} Person${(typeof guest.personCount === 'number' && guest.personCount > 1) ? 'en' : ''}`
+        ? `, ${typeof guest.personCount === 'number' && guest.personCount > 0 ? guest.personCount : 1} ${language === 'en'
+            ? (typeof guest.personCount === 'number' && guest.personCount > 1 ? 'people' : 'person')
+            : `Person${(typeof guest.personCount === 'number' && guest.personCount > 1) ? 'en' : ''}`}`
         : ''
-      return `${guest.name} (${guest.status}${people}${allergies})`
+      const status = language === 'en'
+        ? (guest.status === 'zugesagt' ? 'going' : guest.status === 'abgesagt' ? 'not going' : 'invited')
+        : guest.status
+      return `${guest.name} (${status}${people}${allergies})`
     })
     .filter(Boolean)
 
@@ -206,7 +245,7 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
     ? (() => {
         const parsed = new Date(`${responseDeadline}T12:00:00`)
         if (Number.isNaN(parsed.getTime())) return responseDeadline
-        return new Intl.DateTimeFormat('de-DE', {
+        return new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'de-DE', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
@@ -214,84 +253,80 @@ export function summarizePartyDetails(details?: PartyDetails | null): string {
       })()
     : ''
 
-  if (theme) lines.push(`Motto: ${theme}`)
-  if (forWhom) lines.push(`Für wen / Anlass: ${forWhom}`)
-  if (age !== null) lines.push(`Alter: ${age}`)
-  if (preferences) lines.push(`Vorlieben / Besonderheiten: ${preferences}`)
-  if (formattedResponseDeadline) lines.push(`Antwort bis: ${formattedResponseDeadline}`)
-  if (address) lines.push(`Ort / Adresse: ${address}`)
-  if (date || time) lines.push(`Termin: ${[date, time].filter(Boolean).join(' · ')}`)
+  if (theme) lines.push(`${pt(language, 'Motto', 'Theme')}: ${theme}`)
+  if (forWhom) lines.push(`${pt(language, 'Für wen / Anlass', 'For whom / occasion')}: ${forWhom}`)
+  if (age !== null) lines.push(`${pt(language, 'Alter', 'Age')}: ${age}`)
+  if (preferences) lines.push(`${pt(language, 'Vorlieben / Besonderheiten', 'Preferences / special notes')}: ${preferences}`)
+  if (formattedResponseDeadline) lines.push(`${pt(language, 'Antwort bis', 'Reply by')}: ${formattedResponseDeadline}`)
+  if (address) lines.push(`${pt(language, 'Ort / Adresse', 'Location / address')}: ${address}`)
+  if (date || time) lines.push(`${pt(language, 'Termin', 'Date / time')}: ${[date, time].filter(Boolean).join(' · ')}`)
   if (confirmedGuestTotal > 0) {
-    lines.push(`Gästezahl: ${confirmedGuestTotal} Person${confirmedGuestTotal === 1 ? '' : 'en'}`)
-    if (guestCount) lines.push(`Geplant: ${guestCount}`)
+    lines.push(`${pt(language, 'Gästezahl', 'Guest count')}: ${confirmedGuestTotal} ${language === 'en' ? (confirmedGuestTotal === 1 ? 'person' : 'people') : `Person${confirmedGuestTotal === 1 ? '' : 'en'}`}`)
+    if (guestCount) lines.push(`${pt(language, 'Geplant', 'Planned')}: ${guestCount}`)
   } else if (guestCount) {
-    lines.push(`Gästezahl: ${guestCount}`)
+    lines.push(`${pt(language, 'Gästezahl', 'Guest count')}: ${guestCount}`)
   }
-  if (budgetLimit !== null) lines.push(`Budget: ca. ${budgetLimit.toFixed(2).replace('.', ',')} €`)
-  if (guests.length > 0) lines.push(`Gästeliste: ${guests.join(', ')}`)
+  if (budgetLimit !== null) lines.push(`${pt(language, 'Budget', 'Budget')}: ca. ${budgetLimit.toFixed(2).replace('.', ',')} €`)
+  if (guests.length > 0) lines.push(`${pt(language, 'Gästeliste', 'Guest list')}: ${guests.join(', ')}`)
 
   return lines.join('\n')
 }
 
-function buildTopicFallback(topic: string, details?: PartyDetails | null): string {
+function buildTopicFallback(topic: string, details?: PartyDetails | null, language: PromptLanguage = 'de'): string {
   const trimmedTopic = normalizeText(topic)
   if (trimmedTopic) return trimmedTopic
   if (details?.forWhom) return details.forWhom.trim()
-  return 'Partyplanung'
+  return pt(language, 'Partyplanung', 'Party planning')
 }
 
-function buildContextBlock(topic: string, details?: PartyDetails | null): string {
-  const lines = [`Thema: ${buildTopicFallback(topic, details)}`]
-  const detailsBlock = summarizePartyDetails(details)
+function buildContextBlock(topic: string, details?: PartyDetails | null, language: PromptLanguage = 'de'): string {
+  const lines = [`${pt(language, 'Thema', 'Topic')}: ${buildTopicFallback(topic, details, language)}`]
+  const detailsBlock = summarizePartyDetails(details, language)
   if (detailsBlock) {
-    lines.push('Party-Details:')
+    lines.push(pt(language, 'Party-Details:', 'Party details:'))
     lines.push(detailsBlock)
   }
   return lines.join('\n')
 }
 
-export const SYSTEM_START =
+const SYSTEM_START_BASE =
   'Du bist ein kreativer Planungs-Assistent für Partyplanung. Der User sammelt Ideen zu ' +
   'einem konkreten Anlass auf einem visuellen Board. Nutze das Motto, falls vorhanden, als ' +
   'wichtigsten kreativen Leitfaden und richte Deko-, Spiele- und Essensideen besonders daran aus. ' +
   'Nutze danach die Party-Details als echten Kontext: Berücksichtige Anlass, Alter, Vorlieben, Ort, ' +
   'Termin, Gästezahl und die Gästeliste. Bei Kinderpartys sollen die Ideen altersgerecht sein; bei größeren ' +
   'Gruppen sollen Mengen, Portionsgrößen oder Abläufe zur Gästezahl passen. Erzeuge 8 bis 12 konkrete, ' +
-  'umsetzbare Ideen. Wähle 4 bis 6 zum Anlass passende Kategorien selbst (z.B. Motto, Deko, Spiele, ' +
-  'Essen, Mitgebsel, Zeitplan, Einkauf). ' +
-  'Titel kurz und knackig, Beschreibung 1-2 Sätze mit konkretem Umsetzungstipp. Antworte auf Deutsch.'
+  'umsetzbare Ideen. Wähle 4 bis 6 zum Anlass passende Kategorien selbst (z.B. Motto, Deko, Spiele, Essen, Mitgebsel, Zeitplan, Einkauf). ' +
+  'Titel kurz und knackig, Beschreibung 1-2 Sätze mit konkretem Umsetzungstipp.'
 
-export const SYSTEM_MORE =
+const SYSTEM_MORE_BASE =
   'Du bist ein kreativer Planungs-Assistent für Partyplanung. Der User sammelt Ideen zu einem ' +
   'konkreten Anlass auf einem visuellen Board und möchte Nachschub für eine bestimmte Kategorie. ' +
   'Nutze das Motto, falls vorhanden, als wichtigsten Kontext und bleibe bei derselben Party. Danach ' +
   'nutze die Party-Details als Kontext, inklusive Alter und Vorlieben/Besonderheiten. Erzeuge 3 bis 5 neue Ideen ' +
   'NUR für die genannte Kategorie. Wiederhole keine der bereits vorhandenen Ideen und schlage nichts ' +
-  'sehr Ähnliches vor. Titel kurz und knackig, Beschreibung 1-2 Sätze mit konkretem Umsetzungstipp. ' +
-  'Antworte auf Deutsch.'
+  'sehr Ähnliches vor. Titel kurz und knackig, Beschreibung 1-2 Sätze mit konkretem Umsetzungstipp.'
 
-export const SYSTEM_SHOPPING =
+const SYSTEM_SHOPPING_BASE =
   'Du bist ein pragmatischer Einkaufs-Assistent für Partyplanung. Du sollst aus ausgewählten Ideen, ' +
   'Party-Details und Gästezahl eine konkrete, umsetzbare Einkaufsliste machen. Nutze das Motto, ' +
   'falls vorhanden, als wichtigsten Kontext, dann die übrigen Party-Details inklusive Alter und Vorlieben. ' +
-  'Erzeuge keine vagen ' +
-  'Ratschläge, sondern konkrete Einkaufsartikel mit sinnvollen Mengen oder Packungsgrößen, wenn ' +
+  'Erzeuge keine vagen Ratschläge, sondern konkrete Einkaufsartikel mit sinnvollen Mengen oder Packungsgrößen, wenn ' +
   'das aus dem Kontext ableitbar ist. Berücksichtige bekannte Allergien oder Unverträglichkeiten ' +
   'und schlage bei Bedarf passende Alternativen vor. Gruppiere die Einträge in passende Bereiche. ' +
-  'Erzeuge eher 8 bis 12 konkrete Posten als sehr lange Listen. Antworte auf Deutsch.'
+  'Erzeuge eher 8 bis 12 konkrete Posten als sehr lange Listen.'
 
-export const SYSTEM_TASKS =
+const SYSTEM_TASKS_BASE =
   'Du bist ein pragmatischer Planungs-Assistent für Partyvorbereitung. Du sollst aus Party-Details ' +
   'und ausgewählten Ideen eine konkrete, zeitlich gestaffelte Aufgabenliste machen. Nutze das Motto, ' +
   'falls vorhanden, als wichtigsten Kontext, dann die übrigen Party-Details inklusive Alter und Vorlieben. ' +
-  'Erzeuge Aufgaben mit ' +
-  'praktischen Vorbereitungsschritten, die sich für eine typische Partyplanung eignen. Verteile die ' +
-  'Aufgaben über mehrere Zeitpunkte vor der Party, z. B. einige Wochen vorher, 1 Woche vorher, ' +
+  'Erzeuge Aufgaben mit praktischen Vorbereitungsschritten, die sich für eine typische Partyplanung eignen. ' +
+  'Verteile die Aufgaben über mehrere Zeitpunkte vor der Party, z. B. einige Wochen vorher, 1 Woche vorher, ' +
   '1 Tag vorher und am Party-Tag. Gib für jede Aufgabe einen Wert `daysBeforeParty` an, der angibt, ' +
   'wie viele Tage vor der Party sie idealerweise erledigt werden sollte. Nutze ganze Zahlen, keine ' +
-  'Dezimalwerte. Erzeuge eher 6 bis 10 konkrete Aufgaben als sehr lange Listen. Antworte auf Deutsch.'
+  'Dezimalwerte. Erzeuge eher 6 bis 10 konkrete Aufgaben als sehr lange Listen.'
 
-export const SYSTEM_SCHEDULE =
+const SYSTEM_SCHEDULE_BASE =
   'Du bist ein pragmatischer Planungs-Assistent für den eigentlichen Partytag. Du sollst aus ' +
   'Party-Details und ausgewählten Ideen einen zeitlich strukturierten Ablaufplan für den ' +
   'Partytag selbst machen – also ab Beginn der Party, nicht die Vorbereitung vorher. Nutze das ' +
@@ -301,23 +336,44 @@ export const SYSTEM_SCHEDULE =
   'logische Programmpunkte mit einem guten Flow: Begrüßung/Ankommen, Eröffnung, Hauptaktivität, ' +
   'Essen/Kuchen, weitere Aktivität/Spiel, ruhiger Ausklang und Abholung. Gib für jeden Punkt einen ' +
   'Wert `minutesFromStart` an, also die Minuten seit Partybeginn. Wenn eine Party-Uhrzeit bekannt ist, ' +
-  'nutze passende Uhrzeiten im Ablauf; wenn nicht, arbeite sauber mit relativen Zeitpunkten wie ' +
-  '`nach 30 Min`. Titel kurz und konkret, Beschreibung 1-2 Sätze mit praktischem Tipp. Antworte auf Deutsch.'
+  'nutze passende Uhrzeiten im Ablauf; wenn nicht, arbeite sauber mit relativen Zeitpunkten wie `nach 30 Min`. ' +
+  'Titel kurz und konkret, Beschreibung 1-2 Sätze mit praktischem Tipp.'
 
-export function buildStartUserMessage(topic: string, details?: PartyDetails | null): string {
-  return buildContextBlock(topic, details)
+export function buildSystemStartPrompt(language: PromptLanguage): string {
+  return `${SYSTEM_START_BASE} ${languageInstruction(language)}`
+}
+
+export function buildSystemMorePrompt(language: PromptLanguage): string {
+  return `${SYSTEM_MORE_BASE} ${languageInstruction(language)}`
+}
+
+export function buildSystemShoppingPrompt(language: PromptLanguage): string {
+  return `${SYSTEM_SHOPPING_BASE} ${languageInstruction(language)}`
+}
+
+export function buildSystemTasksPrompt(language: PromptLanguage): string {
+  return `${SYSTEM_TASKS_BASE} ${languageInstruction(language)}`
+}
+
+export function buildSystemSchedulePrompt(language: PromptLanguage): string {
+  return `${SYSTEM_SCHEDULE_BASE} ${languageInstruction(language)}`
+}
+
+export function buildStartUserMessage(topic: string, details?: PartyDetails | null, language: PromptLanguage = 'de'): string {
+  return buildContextBlock(topic, details, language)
 }
 
 export function buildMoreUserMessage(
   topic: string,
   details: PartyDetails | null | undefined,
   category: string,
-  existingTitles: string[]
+  existingTitles: string[],
+  language: PromptLanguage = 'de'
 ): string {
   const lines = [
-    buildContextBlock(topic, details),
-    `Kategorie für den Nachschub: ${category}`,
-    `Bereits vorhandene Ideen (nicht wiederholen):`,
+    buildContextBlock(topic, details, language),
+    `${pt(language, 'Kategorie für den Nachschub', 'Category for the follow-up')}: ${category}`,
+    `${pt(language, 'Bereits vorhandene Ideen (nicht wiederholen)', 'Existing ideas (do not repeat)')}:`,
     ...existingTitles.map((t) => `- ${t}`),
   ]
   return lines.join('\n')
@@ -326,22 +382,24 @@ export function buildMoreUserMessage(
 export function buildShoppingUserMessage(
   topic: string,
   details: PartyDetails | null | undefined,
-  selectedTiles: ShoppingSourceTile[]
+  selectedTiles: ShoppingSourceTile[],
+  language: PromptLanguage = 'de'
 ): string {
   const lines = [
-    buildContextBlock(topic, details),
-    'Aufgabe: Erzeuge daraus eine konkrete Einkaufsliste für die Party.',
-    'Wichtige Regeln:',
-    '- Nur Artikel ausgeben, die sich sinnvoll aus den ausgewählten Ideen oder den Party-Details ableiten lassen.',
-    '- Konkrete Einkaufsartikel nennen, keine losen Ideensätze.',
-    '- Mengen oder Packungsgrößen nennen, wenn sie sich aus Gästezahl oder Anlass ableiten lassen.',
-    '- Für jeden Posten eine grobe Preisschätzung in Euro angeben.',
-    '- Alter sowie Vorlieben/Besonderheiten aus den Party-Details berücksichtigen.',
-    '- Bekannte Allergien/Unverträglichkeiten aus den Party-Details berücksichtigen.',
-    '- Liste nach sinnvollen Bereichen gruppieren, z. B. Deko, Essen, Getränke, Geschirr, Backen, Sonstiges.',
-    '- Keine doppelten oder sehr ähnlichen Artikel.',
-    '- Antworte auf Deutsch.',
-    'Ausgewählte Ideen als Kontext:',
+    buildContextBlock(topic, details, language),
+    pt(language, 'Aufgabe: Erzeuge daraus eine konkrete Einkaufsliste für die Party.', 'Task: Turn this into a concrete shopping list for the party.'),
+    pt(language, 'Wichtige Regeln:', 'Important rules:'),
+    pt(language, '- Nur Artikel ausgeben, die sich sinnvoll aus den ausgewählten Ideen oder den Party-Details ableiten lassen.', '- Only output items that can be sensibly derived from the selected ideas or the party details.'),
+    pt(language, '- Konkrete Einkaufsartikel nennen, keine losen Ideensätze.', '- Name concrete shopping items, not loose idea phrases.'),
+    pt(language, '- Mengen oder Packungsgrößen nennen, wenn sie sich aus Gästezahl oder Anlass ableiten lassen.', '- Mention quantities or pack sizes when they can be inferred from guest count or occasion.'),
+    pt(language, '- Für jeden Posten eine grobe Preisschätzung in Euro angeben.', '- Give a rough price estimate in euros for each item.'),
+    pt(language, '- Alter sowie Vorlieben/Besonderheiten aus den Party-Details berücksichtigen.', '- Consider age and preferences/special notes from the party details.'),
+    pt(language, '- Bekannte Allergien/Unverträglichkeiten aus den Party-Details berücksichtigen.', '- Consider known allergies / intolerances from the party details.'),
+    pt(language, '- Liste nach sinnvollen Bereichen gruppieren, z. B. Deko, Essen, Getränke, Geschirr, Backen, Sonstiges.', '- Group the list into sensible sections, e.g. decor, food, drinks, tableware, baking, misc.'),
+    pt(language, '- Keine doppelten oder sehr ähnlichen Artikel.', '- Do not repeat duplicate or very similar items.'),
+    languageInstruction(language),
+    `${pt(language, 'Verwende für Kategorien nur diese Bereiche', 'Use only these sections for categories')}: ${getShoppingSectionLabels(language).join(', ')}`,
+    pt(language, 'Ausgewählte Ideen als Kontext:', 'Selected ideas as context:'),
     ...selectedTiles.map(
       (tile) =>
         `- [${tile.category}] ${tile.title}${tile.description ? ` — ${tile.description}` : ''}`
@@ -353,20 +411,22 @@ export function buildShoppingUserMessage(
 export function buildShoppingUserMessageCompact(
   topic: string,
   details: PartyDetails | null | undefined,
-  selectedTiles: ShoppingSourceTile[]
+  selectedTiles: ShoppingSourceTile[],
+  language: PromptLanguage = 'de'
 ): string {
   const lines = [
-    buildContextBlock(topic, details),
-    'Erzeuge eine kurze Einkaufsliste.',
-    'Regeln:',
-    '- Nur 6 bis 8 konkrete Posten.',
-    '- Kurze, knappe Beschreibungen.',
-    '- Maximal ein Satz pro Posten.',
-    '- Für jeden Posten eine grobe Preisschätzung in Euro angeben.',
-    '- Alter sowie Vorlieben/Besonderheiten berücksichtigen.',
-    '- Bekannte Allergien/Unverträglichkeiten berücksichtigen.',
-    '- Gruppiere nach Bereich.',
-    'Ausgewählte Ideen:',
+    buildContextBlock(topic, details, language),
+    pt(language, 'Erzeuge eine kurze Einkaufsliste.', 'Create a short shopping list.'),
+    pt(language, 'Regeln:', 'Rules:'),
+    pt(language, '- Nur 6 bis 8 konkrete Posten.', '- Only 6 to 8 concrete items.'),
+    pt(language, '- Kurze, knappe Beschreibungen.', '- Short, concise descriptions.'),
+    pt(language, '- Maximal ein Satz pro Posten.', '- At most one sentence per item.'),
+    pt(language, '- Für jeden Posten eine grobe Preisschätzung in Euro angeben.', '- Give a rough price estimate in euros for each item.'),
+    pt(language, '- Alter sowie Vorlieben/Besonderheiten berücksichtigen.', '- Consider age and preferences/special notes.'),
+    pt(language, '- Bekannte Allergien/Unverträglichkeiten berücksichtigen.', '- Consider known allergies / intolerances.'),
+    pt(language, '- Gruppiere nach Bereich.', '- Group by section.'),
+    `${pt(language, 'Verwende für Kategorien nur diese Bereiche', 'Use only these sections for categories')}: ${getShoppingSectionLabels(language).join(', ')}`,
+    pt(language, 'Ausgewählte Ideen:', 'Selected ideas:'),
     ...selectedTiles.map((tile) => `- ${tile.category}: ${tile.title}`),
   ]
   return lines.join('\n')
@@ -375,20 +435,21 @@ export function buildShoppingUserMessageCompact(
 export function buildTasksUserMessage(
   topic: string,
   details: PartyDetails | null | undefined,
-  selectedTiles: ShoppingSourceTile[]
+  selectedTiles: ShoppingSourceTile[],
+  language: PromptLanguage = 'de'
 ): string {
   const lines = [
-    buildContextBlock(topic, details),
-    'Aufgabe: Erzeuge daraus eine zeitlich gestaffelte Checkliste für die Partyvorbereitung.',
-    'Wichtige Regeln:',
-    '- Nutze die Party-Details, vor allem Datum, Anlass, Motto, Alter, Vorlieben und Gästezahl.',
-    '- Nenne konkrete To-dos wie Einladungen, Deko, Einkäufe, Basteln, Essen vorbereiten oder Aufbau.',
-    '- Streue die Aufgaben über mehrere Zeitpunkte vor der Party.',
-    '- Für jede Aufgabe `daysBeforeParty` als ganze Zahl angeben (z. B. 21, 7, 1, 0).',
-    '- Je größer der Wert, desto früher ist die Aufgabe fällig.',
-    '- Keine doppelten oder sehr ähnlichen Aufgaben.',
-    '- Antworte auf Deutsch.',
-    'Ausgewählte Ideen als Kontext:',
+    buildContextBlock(topic, details, language),
+    pt(language, 'Aufgabe: Erzeuge daraus eine zeitlich gestaffelte Checkliste für die Partyvorbereitung.', 'Task: Turn this into a time-based checklist for party preparation.'),
+    pt(language, 'Wichtige Regeln:', 'Important rules:'),
+    pt(language, '- Nutze die Party-Details, vor allem Datum, Anlass, Motto, Alter, Vorlieben und Gästezahl.', '- Use the party details, especially date, occasion, theme, age, preferences, and guest count.'),
+    pt(language, '- Nenne konkrete To-dos wie Einladungen, Deko, Einkäufe, Basteln, Essen vorbereiten oder Aufbau.', '- Name concrete to-dos such as invitations, decor, shopping, crafting, food prep, or setup.'),
+    pt(language, '- Streue die Aufgaben über mehrere Zeitpunkte vor der Party.', '- Spread the tasks across several points in time before the party.'),
+    pt(language, '- Für jede Aufgabe `daysBeforeParty` als ganze Zahl angeben (z. B. 21, 7, 1, 0).', '- For each task, provide `daysBeforeParty` as an integer (e.g. 21, 7, 1, 0).'),
+    pt(language, '- Je größer der Wert, desto früher ist die Aufgabe fällig.', '- The larger the value, the earlier the task is due.'),
+    pt(language, '- Keine doppelten oder sehr ähnlichen Aufgaben.', '- Do not repeat duplicate or very similar tasks.'),
+    languageInstruction(language),
+    pt(language, 'Ausgewählte Ideen als Kontext:', 'Selected ideas as context:'),
     ...selectedTiles.map(
       (tile) =>
         `- [${tile.category}] ${tile.title}${tile.description ? ` — ${tile.description}` : ''}`
@@ -400,17 +461,18 @@ export function buildTasksUserMessage(
 export function buildTasksUserMessageCompact(
   topic: string,
   details: PartyDetails | null | undefined,
-  selectedTiles: ShoppingSourceTile[]
+  selectedTiles: ShoppingSourceTile[],
+  language: PromptLanguage = 'de'
 ): string {
   const lines = [
-    buildContextBlock(topic, details),
-    'Erzeuge eine kurze Aufgabenliste.',
-    'Regeln:',
-    '- Nur 5 bis 7 Aufgaben.',
-    '- Ganze Zahlen für `daysBeforeParty`.',
-    '- Kurze Titel, eine knappe Beschreibung.',
-    '- Gute Staffelung: mehrere Wochen vorher bis am Party-Tag.',
-    'Ausgewählte Ideen:',
+    buildContextBlock(topic, details, language),
+    pt(language, 'Erzeuge eine kurze Aufgabenliste.', 'Create a short task list.'),
+    pt(language, 'Regeln:', 'Rules:'),
+    pt(language, '- Nur 5 bis 7 Aufgaben.', '- Only 5 to 7 tasks.'),
+    pt(language, '- Ganze Zahlen für `daysBeforeParty`.', '- Use whole numbers for `daysBeforeParty`.'),
+    pt(language, '- Kurze Titel, eine knappe Beschreibung.', '- Short titles, brief descriptions.'),
+    pt(language, '- Gute Staffelung: mehrere Wochen vorher bis am Party-Tag.', '- Good spread: from several weeks before to the day of the party.'),
+    pt(language, 'Ausgewählte Ideen:', 'Selected ideas:'),
     ...selectedTiles.map((tile) => `- ${tile.category}: ${tile.title}`),
   ]
   return lines.join('\n')
@@ -420,26 +482,27 @@ export function buildScheduleUserMessage(
   topic: string,
   details: PartyDetails | null | undefined,
   selectedTiles: ShoppingSourceTile[],
-  wishes?: string
+  wishes?: string,
+  language: PromptLanguage = 'de'
 ): string {
   const lines = [
-    buildContextBlock(topic, details),
-    'Aufgabe: Erzeuge daraus einen Ablaufplan für den Tag der Party selbst.',
-    'Wichtige Regeln:',
-    '- Plane den Ablauf ab dem Beginn der Party.',
-    '- Nutze eine gute Dramaturgie: Ankommen, Begrüßung, erstes Spiel/Eröffnung, Hauptaktivität, Essen/Kuchen, weitere Aktivität, Ausklang/Abholung.',
-    '- Berücksichtige Alter sowie Vorlieben/Besonderheiten besonders stark.',
-    '- Wenn eine Party-Uhrzeit gesetzt ist, sollen die Programmpunkte in realen Uhrzeiten verständlich sein; ansonsten arbeite mit Minuten seit Start.',
-    '- Verwende für jeden Punkt `minutesFromStart` als ganze Zahl.',
-    '- Halte den Plan kompakt und realistisch, keine Überladung.',
-    '- Zusätzlich liefere 2 bis 4 Backup-Punkte für schlechtes Wetter oder ausgefallene Outdoor-Aktivitäten.',
-    '- Gib diese Backup-Punkte als `backupItems` zurück.',
-    '- Die Backup-Punkte sollen kurze Titel und knappe Notizen haben und eher Indoor-Alternativen vorschlagen.',
-    '- Antworte auf Deutsch.',
+    buildContextBlock(topic, details, language),
+    pt(language, 'Aufgabe: Erzeuge daraus einen Ablaufplan für den Tag der Party selbst.', 'Task: Turn this into a schedule for the party day itself.'),
+    pt(language, 'Wichtige Regeln:', 'Important rules:'),
+    pt(language, '- Plane den Ablauf ab dem Beginn der Party.', '- Plan the flow starting at the beginning of the party.'),
+    pt(language, '- Nutze eine gute Dramaturgie: Ankommen, Begrüßung, erstes Spiel/Eröffnung, Hauptaktivität, Essen/Kuchen, weitere Aktivität, Ausklang/Abholung.', '- Use a good dramatic flow: arrival, greeting, first game/opening, main activity, food/cake, another activity, wind-down/pickup.'),
+    pt(language, '- Berücksichtige Alter sowie Vorlieben/Besonderheiten besonders stark.', '- Pay special attention to age and preferences/special notes.'),
+    pt(language, '- Wenn eine Party-Uhrzeit gesetzt ist, sollen die Programmpunkte in realen Uhrzeiten verständlich sein; ansonsten arbeite mit Minuten seit Start.', '- If a party time is set, the program points should read well as real clock times; otherwise work with minutes from start.'),
+    pt(language, '- Verwende für jeden Punkt `minutesFromStart` als ganze Zahl.', '- Use `minutesFromStart` as an integer for each point.'),
+    pt(language, '- Halte den Plan kompakt und realistisch, keine Überladung.', '- Keep the plan compact and realistic, not overloaded.'),
+    pt(language, '- Zusätzlich liefere 2 bis 4 Backup-Punkte für schlechtes Wetter oder ausgefallene Outdoor-Aktivitäten.', '- Also provide 2 to 4 backup points for bad weather or cancelled outdoor activities.'),
+    pt(language, '- Gib diese Backup-Punkte als `backupItems` zurück.', '- Return these backup points as `backupItems`.'),
+    pt(language, '- Die Backup-Punkte sollen kurze Titel und knappe Notizen haben und eher Indoor-Alternativen vorschlagen.', '- The backup points should have short titles and brief notes and suggest indoor alternatives.'),
+    languageInstruction(language),
     wishes?.trim()
-      ? `Zusätzliche Wünsche des Gastgebers: ${wishes.trim()}`
-      : 'Zusätzliche Wünsche des Gastgebers: keine',
-    'Ausgewählte Ideen als Kontext:',
+      ? `${pt(language, 'Zusätzliche Wünsche des Gastgebers', 'Additional wishes from the host')}: ${wishes.trim()}`
+      : `${pt(language, 'Zusätzliche Wünsche des Gastgebers', 'Additional wishes from the host')}: ${pt(language, 'keine', 'none')}`,
+    pt(language, 'Ausgewählte Ideen als Kontext:', 'Selected ideas as context:'),
     ...selectedTiles.map(
       (tile) =>
         `- [${tile.category}] ${tile.title}${tile.description ? ` — ${tile.description}` : ''}`
@@ -452,22 +515,23 @@ export function buildScheduleUserMessageCompact(
   topic: string,
   details: PartyDetails | null | undefined,
   selectedTiles: ShoppingSourceTile[],
-  wishes?: string
+  wishes?: string,
+  language: PromptLanguage = 'de'
 ): string {
   const lines = [
-    buildContextBlock(topic, details),
-    'Erzeuge einen kurzen Ablaufplan für die Party.',
-    'Regeln:',
-    '- Nur 5 bis 6 Programmpunkte.',
-    '- Kurze Titel.',
-    '- Kurze Notizen, maximal ein Satz.',
-    '- minutesFromStart als ganze Zahl.',
-    '- Alter sowie Vorlieben/Besonderheiten berücksichtigen.',
-    '- Zusätzlich 2 bis 4 Backup-Punkte als `backupItems` für schlechtes Wetter oder Indoor-Alternativen.',
+    buildContextBlock(topic, details, language),
+    pt(language, 'Erzeuge einen kurzen Ablaufplan für die Party.', 'Create a short schedule for the party.'),
+    pt(language, 'Regeln:', 'Rules:'),
+    pt(language, '- Nur 5 bis 6 Programmpunkte.', '- Only 5 to 6 program points.'),
+    pt(language, '- Kurze Titel.', '- Short titles.'),
+    pt(language, '- Kurze Notizen, maximal ein Satz.', '- Short notes, at most one sentence.'),
+    pt(language, '- minutesFromStart als ganze Zahl.', '- Use `minutesFromStart` as an integer.'),
+    pt(language, '- Alter sowie Vorlieben/Besonderheiten berücksichtigen.', '- Consider age and preferences/special notes.'),
+    pt(language, '- Zusätzlich 2 bis 4 Backup-Punkte als `backupItems` für schlechtes Wetter oder Indoor-Alternativen.', '- Also provide 2 to 4 backup points as `backupItems` for bad weather or indoor alternatives.'),
     wishes?.trim()
-      ? `Zusätzliche Wünsche des Gastgebers: ${wishes.trim()}`
-      : 'Zusätzliche Wünsche des Gastgebers: keine',
-    'Ausgewählte Ideen:',
+      ? `${pt(language, 'Zusätzliche Wünsche des Gastgebers', 'Additional wishes from the host')}: ${wishes.trim()}`
+      : `${pt(language, 'Zusätzliche Wünsche des Gastgebers', 'Additional wishes from the host')}: ${pt(language, 'keine', 'none')}`,
+    pt(language, 'Ausgewählte Ideen:', 'Selected ideas:'),
     ...selectedTiles.map((tile) => `- ${tile.category}: ${tile.title}`),
   ]
   return lines.join('\n')
