@@ -1,7 +1,7 @@
 import type { PartyDetails } from '../types.js'
-import { formatPartyAddress } from './location'
-import de from '../locales/de'
-import en from '../locales/en'
+import { formatPartyAddress } from './location.js'
+import de from '../locales/de.js'
+import en from '../locales/en.js'
 
 // Gemeinsame Bausteine für die OpenAI-Anfragen. Dieses Modul wird von
 // ZWEI Seiten benutzt: vom Browser (lokale Entwicklung) und von den
