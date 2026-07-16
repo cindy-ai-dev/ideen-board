@@ -311,9 +311,13 @@ const SYSTEM_SHOPPING_BASE =
   'Du bist ein pragmatischer Einkaufs-Assistent für Partyplanung. Du sollst aus ausgewählten Ideen, ' +
   'Party-Details und Gästezahl eine konkrete, umsetzbare Einkaufsliste machen. Nutze das Motto, ' +
   'bzw. das gewählte Thema, falls vorhanden, als wichtigsten Kontext, dann die übrigen Party-Details inklusive Alter und Vorlieben. ' +
-  'Erzeuge keine vagen Ratschläge, sondern konkrete Einkaufsartikel mit sinnvollen Mengen oder Packungsgrößen, wenn ' +
-  'das aus dem Kontext ableitbar ist. Berücksichtige bekannte Allergien oder Unverträglichkeiten ' +
-  'und schlage bei Bedarf passende Alternativen vor. Gruppiere die Einträge in passende Bereiche. ' +
+  'Jeder Eintrag muss einen einzeln kaufbaren Artikel bezeichnen und bereits im label eine konkrete Menge, Stückzahl, ' +
+  'Gewichts-, Volumen- oder Packungsangabe enthalten (z.B. "1x Piñata passend zum Motto" oder "2 Flaschen Apfelsaft à 1 l"). ' +
+  'Zerlege eine ausgewählte Idee in alle dafür nötigen, separat zu kaufenden Artikel, statt nur den Oberbegriff der Idee zu wiederholen. ' +
+  'Passe Verbrauchsartikel wie Essen, Snacks, Getränke, Servietten und Becher an die Gästezahl an und nenne im label oder note, ' +
+  'für wie viele Gäste die berechnete Menge gedacht ist. Berücksichtige bekannte Allergien oder Unverträglichkeiten ' +
+  'und schlage bei Bedarf passende Alternativen vor. Halte die Summe der geschätzten Preise innerhalb des Budget-Limits, falls eines angegeben ist. ' +
+  'Gruppiere die Einträge in passende Bereiche. ' +
   'Erzeuge eher 8 bis 12 konkrete Posten als sehr lange Listen.'
 
 const SYSTEM_TASKS_BASE =
@@ -390,9 +394,12 @@ export function buildShoppingUserMessage(
     pt(language, 'Aufgabe: Erzeuge daraus eine konkrete Einkaufsliste für die Party.', 'Task: Turn this into a concrete shopping list for the party.'),
     pt(language, 'Wichtige Regeln:', 'Important rules:'),
     pt(language, '- Nur Artikel ausgeben, die sich sinnvoll aus den ausgewählten Ideen oder den Party-Details ableiten lassen.', '- Only output items that can be sensibly derived from the selected ideas or the party details.'),
-    pt(language, '- Konkrete Einkaufsartikel nennen, keine losen Ideensätze.', '- Name concrete shopping items, not loose idea phrases.'),
-    pt(language, '- Mengen oder Packungsgrößen nennen, wenn sie sich aus Gästezahl oder Anlass ableiten lassen.', '- Mention quantities or pack sizes when they can be inferred from guest count or occasion.'),
+    pt(language, '- Jeder Posten muss genau einen konkreten, separat kaufbaren Artikel nennen; keine vagen Oberbegriffe oder losen Ideensätze.', '- Each item must name exactly one concrete, separately purchasable product; do not use vague umbrella terms or loose idea phrases.'),
+    pt(language, '- Das label jedes Postens muss eine konkrete Menge enthalten: Anzahl, Stückzahl, Gewicht, Volumen oder Packungsgröße (z. B. "1x Piñata passend zum Motto").', '- The label of every item must contain a concrete quantity: count, number of pieces, weight, volume, or pack size (e.g. "1x piñata matching the theme").'),
+    pt(language, '- Zerlege Ideen in zusätzlich benötigte, separat zu kaufende Artikel. Beispiel Piñata: 1x Piñata, ca. 500 g Süßigkeiten zum Befüllen und 1x Piñata-Schläger, sofern nicht enthalten.', '- Break ideas down into additionally required products that must be bought separately. Piñata example: 1x piñata, approx. 500 g sweets for filling, and 1x piñata stick if not included.'),
+    pt(language, '- Berechne Mengen für Snacks, Essen, Getränke, Servietten, Becher und ähnliche Verbrauchsartikel anhand der angegebenen Gästezahl. Nenne ausdrücklich "X Stück/l/kg für Y Gäste" im label oder note.', '- Calculate quantities for snacks, food, drinks, napkins, cups, and similar consumables from the stated guest count. Explicitly state "X pieces/l/kg for Y guests" in the label or note.'),
     pt(language, '- Für jeden Posten eine grobe Preisschätzung in Euro angeben.', '- Give a rough price estimate in euros for each item.'),
+    pt(language, '- Falls ein Budget-Limit angegeben ist, muss die Summe aller priceEuro-Werte dieses Limit einhalten; priorisiere notwendige Artikel und wähle realistische, kostengünstige Mengen.', '- If a budget limit is provided, the sum of all priceEuro values must stay within it; prioritize essential products and choose realistic, cost-conscious quantities.'),
     pt(language, '- Alter sowie Vorlieben/Besonderheiten aus den Party-Details berücksichtigen.', '- Consider age and preferences/special notes from the party details.'),
     pt(language, '- Bekannte Allergien/Unverträglichkeiten aus den Party-Details berücksichtigen.', '- Consider known allergies / intolerances from the party details.'),
     pt(language, '- Liste nach sinnvollen Bereichen gruppieren, z. B. Deko, Essen, Getränke, Geschirr, Backen, Sonstiges.', '- Group the list into sensible sections, e.g. decor, food, drinks, tableware, baking, misc.'),
@@ -419,9 +426,13 @@ export function buildShoppingUserMessageCompact(
     pt(language, 'Erzeuge eine kurze Einkaufsliste.', 'Create a short shopping list.'),
     pt(language, 'Regeln:', 'Rules:'),
     pt(language, '- Nur 6 bis 8 konkrete Posten.', '- Only 6 to 8 concrete items.'),
+    pt(language, '- Jeder Posten ist genau ein separat kaufbarer Artikel; notwendiges Zubehör als eigenen Posten ausgeben.', '- Each item is exactly one separately purchasable product; list required accessories as separate items.'),
+    pt(language, '- Jedes label enthält eine konkrete Anzahl, Stückzahl, Gewichts-, Volumen- oder Packungsangabe.', '- Every label contains a concrete count, number of pieces, weight, volume, or pack size.'),
+    pt(language, '- Mengen für Verbrauchsartikel an der Gästezahl ausrichten und "X für Y Gäste" im label oder note nennen.', '- Base consumable quantities on the guest count and state "X for Y guests" in the label or note.'),
     pt(language, '- Kurze, knappe Beschreibungen.', '- Short, concise descriptions.'),
     pt(language, '- Maximal ein Satz pro Posten.', '- At most one sentence per item.'),
     pt(language, '- Für jeden Posten eine grobe Preisschätzung in Euro angeben.', '- Give a rough price estimate in euros for each item.'),
+    pt(language, '- Ein angegebenes Budget-Limit mit der Summe aller Preise einhalten.', '- Keep the sum of all prices within any provided budget limit.'),
     pt(language, '- Alter sowie Vorlieben/Besonderheiten berücksichtigen.', '- Consider age and preferences/special notes.'),
     pt(language, '- Bekannte Allergien/Unverträglichkeiten berücksichtigen.', '- Consider known allergies / intolerances.'),
     pt(language, '- Gruppiere nach Bereich.', '- Group by section.'),
