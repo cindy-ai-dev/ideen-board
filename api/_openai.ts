@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import {
   IDEAS_SCHEMA,
+  INVITATION_SCHEMA,
   MODEL,
   SCHEDULE_SCHEMA,
   TASKS_SCHEMA,
@@ -16,7 +17,7 @@ import {
 // Gemeinsamer Kern beider API-Funktionen. Läuft NUR auf dem Server –
 // der Key kommt aus der Vercel-Umgebungsvariable OPENAI_API_KEY
 // (ohne VITE_-Prefix: damit kann er nie ins Browser-Bundle rutschen).
-type JsonSchema = typeof IDEAS_SCHEMA | typeof SHOPPING_SCHEMA | typeof TASKS_SCHEMA | typeof SCHEDULE_SCHEMA
+type JsonSchema = typeof IDEAS_SCHEMA | typeof SHOPPING_SCHEMA | typeof TASKS_SCHEMA | typeof SCHEDULE_SCHEMA | typeof INVITATION_SCHEMA
 
 async function askOpenAIJson<T>(
   system: string,
@@ -91,6 +92,11 @@ async function askOpenAIJsonWithRetry<T>(options: {
 export async function askOpenAI(system: string, userMessage: string): Promise<RawIdea[]> {
   const data = await askOpenAIJson<{ ideas: RawIdea[] }>(system, userMessage, IDEAS_SCHEMA, 'ideas')
   return data.ideas
+}
+
+export async function askOpenAIInvitation(system: string, userMessage: string): Promise<string> {
+  const data = await askOpenAIJson<{ text: string }>(system, userMessage, INVITATION_SCHEMA, 'invitation_text', 500)
+  return data.text
 }
 
 export async function askOpenAIShopping(

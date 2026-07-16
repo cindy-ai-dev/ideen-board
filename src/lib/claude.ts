@@ -1,16 +1,19 @@
 import type { PartyDetails, Tile } from '../types'
 import {
   IDEAS_SCHEMA,
+  INVITATION_SCHEMA,
   MODEL,
   SHOPPING_SCHEMA,
   TASKS_SCHEMA,
   SCHEDULE_SCHEMA,
   buildSystemStartPrompt,
+  buildSystemInvitationPrompt,
   buildSystemMorePrompt,
   buildSystemShoppingPrompt,
   buildSystemTasksPrompt,
   buildSystemSchedulePrompt,
   buildStartUserMessage,
+  buildInvitationUserMessage,
   buildMoreUserMessage,
   buildShoppingUserMessage,
   buildShoppingUserMessageCompact,
@@ -26,7 +29,7 @@ import {
   type ShoppingSourceTile,
 } from './prompts'
 
-type JsonSchema = typeof IDEAS_SCHEMA | typeof SHOPPING_SCHEMA | typeof TASKS_SCHEMA | typeof SCHEDULE_SCHEMA
+type JsonSchema = typeof IDEAS_SCHEMA | typeof SHOPPING_SCHEMA | typeof TASKS_SCHEMA | typeof SCHEDULE_SCHEMA | typeof INVITATION_SCHEMA
 
 // Zwei Wege zum selben Ziel:
 //
@@ -122,6 +125,31 @@ export async function generateIdeas(
       )
     : await callProxy<{ ideas: RawIdea[] }>('/api/ideas', { topic, partyDetails, language: promptLanguage })
   return toTiles(result.ideas, boardId)
+}
+
+export async function generateInvitationText(
+  topic: string,
+  partyDetails: PartyDetails,
+  language: string = 'de'
+): Promise<string> {
+  const promptLanguage = normalizePromptLanguage(language)
+  if (import.meta.env.DEV) {
+    const result = await callOpenAIDirect<{ text: string }>(
+      buildSystemInvitationPrompt(promptLanguage),
+      buildInvitationUserMessage(topic, partyDetails, promptLanguage),
+      INVITATION_SCHEMA,
+      'invitation_text',
+      500
+    )
+    return result.text
+  }
+
+  const response = await callProxy<{ text: string }>('/api/invitation-text', {
+    topic,
+    partyDetails,
+    language: promptLanguage,
+  })
+  return response.text
 }
 
 export async function generateMoreIdeas(

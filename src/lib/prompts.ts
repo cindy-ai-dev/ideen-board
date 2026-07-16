@@ -83,6 +83,15 @@ export const SHOPPING_SCHEMA = {
   additionalProperties: false,
 } as const
 
+export const INVITATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    text: { type: 'string' },
+  },
+  required: ['text'],
+  additionalProperties: false,
+} as const
+
 export const TASKS_SCHEMA = {
   type: 'object',
   properties: {
@@ -320,6 +329,14 @@ const SYSTEM_SHOPPING_BASE =
   'Gruppiere die Einträge in passende Bereiche. ' +
   'Erzeuge eher 8 bis 12 konkrete Posten als sehr lange Listen.'
 
+const SYSTEM_INVITATION_BASE =
+  'Du verfasst einen fertigen, fröhlichen Einladungstext für eine Party. Nutze das Motto bzw. Thema als kreativen Leitfaden, ' +
+  'falls es angegeben ist; andernfalls formuliere allgemein herzlich und einladend. Enthält der Kontext ein Alter, schreibe ' +
+  'altersgerecht für einen Kindergeburtstag, ohne kindisch zu übertreiben. Der Text muss Anlass bzw. Partyname, Datum, Uhrzeit ' +
+  'und vollständigen Ort enthalten, sofern diese Angaben vorhanden sind. Nenne außerdem die Antwortfrist, falls sie gesetzt ist. ' +
+  'Erfinde keine fehlenden Fakten. Schreibe nur den versandfertigen Einladungstext, kurz und prägnant für WhatsApp oder eine Textnachricht, ' +
+  'mit höchstens 90 Wörtern. Keine Überschrift, keine Erklärung und keine Platzhalter.'
+
 const SYSTEM_TASKS_BASE =
   'Du bist ein pragmatischer Planungs-Assistent für Partyvorbereitung. Du sollst aus Party-Details ' +
   'und ausgewählten Ideen eine konkrete, zeitlich gestaffelte Aufgabenliste machen. Nutze das Motto, ' +
@@ -353,6 +370,10 @@ export function buildSystemMorePrompt(language: PromptLanguage): string {
 
 export function buildSystemShoppingPrompt(language: PromptLanguage): string {
   return `${SYSTEM_SHOPPING_BASE} ${languageInstruction(language)}`
+}
+
+export function buildSystemInvitationPrompt(language: PromptLanguage): string {
+  return `${SYSTEM_INVITATION_BASE} ${languageInstruction(language)}`
 }
 
 export function buildSystemTasksPrompt(language: PromptLanguage): string {
@@ -441,6 +462,21 @@ export function buildShoppingUserMessageCompact(
     ...selectedTiles.map((tile) => `- ${tile.category}: ${tile.title}`),
   ]
   return lines.join('\n')
+}
+
+export function buildInvitationUserMessage(
+  topic: string,
+  details: PartyDetails | null | undefined,
+  language: PromptLanguage = 'de'
+): string {
+  return [
+    buildContextBlock(topic, details, language),
+    pt(
+      language,
+      'Aufgabe: Verfasse jetzt einen kurzen, direkt versandfertigen Einladungstext. Übernimm alle vorhandenen Eckdaten exakt und erwähne die Antwort-bis-Frist, falls gesetzt.',
+      'Task: Write a short invitation that is ready to send. Preserve all provided key details exactly and mention the reply-by deadline if set.'
+    ),
+  ].join('\n')
 }
 
 export function buildTasksUserMessage(
