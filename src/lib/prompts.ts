@@ -147,10 +147,8 @@ export const SCHEDULE_SCHEMA = {
   additionalProperties: false,
 } as const
 
-// Luna ist die kostengünstigste GPT-5.6-Variante und für PartyHost
-// während der Entwicklung ausreichend. Für die finale Abgabe kann dieser
-// Wert bei Bedarf wieder auf ein stärkeres Modell wechseln.
-export const MODEL = 'gpt-5.6-luna'
+// Gemeinsames primäres Modell für Browser-Entwicklung und Server-API.
+export const MODEL = 'gpt-5.6'
 
 export interface RawShoppingItem {
   section: string

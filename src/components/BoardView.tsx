@@ -124,30 +124,6 @@ function buildRsvpShareText(options: {
   })
 }
 
-function buildInvitationImagePrompt(details: PartyDetails, topic: string): string {
-  const occasion = details.forWhom.trim() || topic.trim() || 'joyful party'
-  const theme = details.theme.trim()
-  const audience = typeof details.age === 'number' && details.age > 0
-    ? `cheerful kids birthday party for age ${Math.round(details.age)}`
-    : 'joyful celebration'
-  return [
-    'square party invitation illustration',
-    occasion,
-    theme ? `${theme} theme` : '',
-    audience,
-    'warm pastel colors',
-    'playful festive details',
-    'polished editorial illustration',
-    'clear central composition',
-    'illustration only, purely visual, artwork without any written elements',
-    'ABSOLUTELY NO TEXT, no words, no letters, no writing, no typography, no captions, no signage, no logos, no fonts, no numbers, no watermark, no symbols resembling writing, illustration only, purely visual',
-  ].filter(Boolean).join(', ')
-}
-
-function buildPollinationsImageUrl(prompt: string): string {
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&model=flux&seed=${Date.now()}`
-}
-
 function normalizePrice(price: number | string | null | undefined): number | null {
   if (typeof price === 'number') {
     return Number.isFinite(price) && price >= 0 ? price : null
@@ -293,9 +269,6 @@ export function BoardView({
   const [loadingInvitation, setLoadingInvitation] = useState(false)
   const [invitationText, setInvitationText] = useState('')
   const [invitationCopyState, setInvitationCopyState] = useState<'idle' | 'copied'>('idle')
-  const [loadingInvitationImage, setLoadingInvitationImage] = useState(false)
-  const [invitationImageUrl, setInvitationImageUrl] = useState('')
-  const [invitationImageError, setInvitationImageError] = useState(false)
   const [scheduleBackupOpen, setScheduleBackupOpen] = useState(() => {
     if (typeof window === 'undefined') return false
     return window.location.hash === '#backup-plan'
@@ -370,12 +343,6 @@ export function BoardView({
       if (invitationTimerRef.current !== null) window.clearTimeout(invitationTimerRef.current)
     }
   }, [])
-
-  useEffect(() => {
-    return () => {
-      if (invitationImageUrl) URL.revokeObjectURL(invitationImageUrl)
-    }
-  }, [invitationImageUrl])
 
   async function ensureRsvpToken(): Promise<string> {
     let token = board.rsvpToken.trim()
@@ -552,43 +519,11 @@ export function BoardView({
     try {
       const text = await generateInvitationText(board.topic, board.partyDetails, language)
       setInvitationText(text.trim())
-      void handleGenerateInvitationImage()
     } catch {
       setError(t('overview.invitationError'))
     } finally {
       setLoadingInvitation(false)
     }
-  }
-
-  async function handleGenerateInvitationImage() {
-    if (loadingInvitationImage) return
-    setLoadingInvitationImage(true)
-    setInvitationImageError(false)
-    try {
-      const prompt = buildInvitationImagePrompt(board.partyDetails, board.topic)
-      const response = await fetch(buildPollinationsImageUrl(prompt))
-      if (!response.ok) throw new Error(`Pollinations returned ${response.status}`)
-      const blob = await response.blob()
-      if (!blob.type.startsWith('image/') || blob.size === 0) {
-        throw new Error('Pollinations did not return a valid image')
-      }
-      setInvitationImageUrl(URL.createObjectURL(blob))
-    } catch {
-      setInvitationImageUrl('')
-      setInvitationImageError(true)
-    } finally {
-      setLoadingInvitationImage(false)
-    }
-  }
-
-  function downloadInvitationImage() {
-    if (!invitationImageUrl) return
-    const link = document.createElement('a')
-    link.href = invitationImageUrl
-    link.download = 'party-einladung.jpg'
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
   }
 
   function handleShareInvitation() {
@@ -1060,7 +995,7 @@ export function BoardView({
                 </div>
 
                 {invitationText && (
-                  <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
+                  <div className="mt-4">
                     <div className="rounded-2xl border border-white/90 bg-white/85 p-4 shadow-sm">
                       <label className="text-xs font-bold uppercase tracking-[0.16em] text-stone-400" htmlFor="invitation-text">
                         {t('overview.invitationTextLabel')}
@@ -1101,64 +1036,6 @@ export function BoardView({
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/90 bg-white/85 p-4 shadow-sm">
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
-                        {t('overview.invitationImageTitle')}
-                      </p>
-                      {loadingInvitationImage && (
-                        <div className="mt-2 flex aspect-square items-center justify-center rounded-2xl border border-dashed border-orange-200 bg-orange-50/60">
-                          <div className="text-center text-sm font-medium text-orange-700">
-                            <span className="mx-auto mb-3 block h-8 w-8 animate-spin rounded-full border-4 border-orange-200 border-t-orange-500" aria-hidden="true" />
-                            {t('overview.invitationImageGenerating')}
-                          </div>
-                        </div>
-                      )}
-                      {!loadingInvitationImage && invitationImageUrl && (
-                        <img
-                          src={invitationImageUrl}
-                          alt={t('overview.invitationImageAlt')}
-                          className="mt-2 aspect-square w-full rounded-2xl object-cover shadow-[0_10px_24px_rgba(120,75,42,0.16)]"
-                        />
-                      )}
-                      {!loadingInvitationImage && invitationImageError && (
-                        <div className="mt-2 flex aspect-square items-center justify-center rounded-2xl border border-dashed border-rose-200 bg-rose-50/70 p-5 text-center text-sm leading-relaxed text-rose-700">
-                          {t('overview.invitationImageError')}
-                        </div>
-                      )}
-                      {!loadingInvitationImage && !invitationImageUrl && !invitationImageError && (
-                        <div className="mt-2 flex aspect-square items-center justify-center rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 p-5 text-center text-sm text-stone-500">
-                          {t('overview.invitationImageTitle')}
-                        </div>
-                      )}
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {invitationImageUrl && (
-                          <div className="flex flex-col gap-1.5">
-                            <button
-                              type="button"
-                              onClick={downloadInvitationImage}
-                              className="self-start rounded-xl border border-orange-200 bg-white px-3.5 py-2 text-sm font-semibold text-orange-700 transition hover:bg-orange-50"
-                            >
-                              {t('overview.invitationImageDownload')}
-                            </button>
-                            <p className="max-w-xs text-xs leading-relaxed text-stone-500">
-                              {t('overview.invitationManualShareHint')}
-                            </p>
-                          </div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => void handleGenerateInvitationImage()}
-                          disabled={loadingInvitationImage}
-                          className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-wait disabled:opacity-60"
-                        >
-                          {loadingInvitationImage
-                            ? t('overview.invitationImageGenerating')
-                            : invitationImageUrl
-                              ? t('overview.invitationImageRegenerate')
-                              : t('overview.invitationImageGenerate')}
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>
