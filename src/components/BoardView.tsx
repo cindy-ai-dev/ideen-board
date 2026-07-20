@@ -264,6 +264,7 @@ export function BoardView({
   const [loadingIdeas, setLoadingIdeas] = useState(false)
   const [loadingLink, setLoadingLink] = useState(false)
   const [loadingShopping, setLoadingShopping] = useState(false)
+  const [shoppingError, setShoppingError] = useState<string | null>(null)
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [loadingSchedule, setLoadingSchedule] = useState(false)
   const [loadingInvitation, setLoadingInvitation] = useState(false)
@@ -556,22 +557,28 @@ export function BoardView({
       }))
 
     if (selectedTiles.length === 0) {
-      setError(t('shopping.selectedHint'))
+      setShoppingError(t('shopping.selectedHint'))
       return
     }
 
     setError(null)
+    setShoppingError(null)
     setLoadingShopping(true)
+    console.info('[shopping] Generate clicked', { selectedIdeasCount: selectedTiles.length })
     try {
       const suggestions = await generateShoppingList(board.topic, board.partyDetails, selectedTiles, language)
+      console.info('[shopping] Generation succeeded', { itemCount: suggestions.length })
       setBoard((current) => ({
         ...current,
         shoppingList: mergeShoppingSuggestions(current.shoppingList, suggestions),
       }))
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('shopping.loadError'))
+      const message = e instanceof Error ? e.message : t('shopping.loadError')
+      console.error('[shopping] Generation failed', e)
+      setShoppingError(message)
     } finally {
       setLoadingShopping(false)
+      console.info('[shopping] Generation finished; loader cleared')
     }
   }
 
@@ -1328,6 +1335,7 @@ export function BoardView({
             partyDetails={board.partyDetails}
             editable
             generating={loadingShopping}
+            errorMessage={shoppingError}
             selectedIdeasCount={board.tiles.filter((tile) => tile.selected).length}
             onGenerate={handleGenerateShoppingList}
             onToggleItem={handleToggleShoppingItem}

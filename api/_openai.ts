@@ -31,31 +31,45 @@ async function askOpenAIJson<T>(
     throw new Error('OPENAI_API_KEY is not set')
   }
   const client = new OpenAI({ apiKey })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 45_000)
 
-  const response = await client.responses.create({
-    model: MODEL,
-    max_output_tokens: maxOutputTokens,
-    instructions: system,
-    input: userMessage,
-    text: {
-      format: {
-        type: 'json_schema',
-        name: responseName,
-        strict: true,
-        schema,
+  try {
+    const response = await client.responses.create({
+      model: MODEL,
+      max_output_tokens: maxOutputTokens,
+      instructions: system,
+      input: userMessage,
+      text: {
+        format: {
+          type: 'json_schema',
+          name: responseName,
+          strict: true,
+          schema,
+        },
       },
-    },
-  })
+    }, { signal: controller.signal })
 
-  if (!response.output_text) {
-    throw new Error('Keine Antwort von der API erhalten')
+    if (!response.output_text) {
+      throw new Error(`Unvollständige JSON-Antwort von OpenAI (${response.status})`)
+    }
+    try {
+      return JSON.parse(response.output_text) as T
+    } catch (error) {
+      console.error('[OpenAI API] Invalid JSON response', { responseName, output: response.output_text, error })
+      throw new Error('Ungültige JSON-Antwort von OpenAI', { cause: error })
+    }
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('OpenAI request timed out')
+    throw error
+  } finally {
+    clearTimeout(timeout)
   }
-  return JSON.parse(response.output_text) as T
 }
 
 function isTruncatedJsonError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
-  return /JSON|unterminated|unexpected end|end of JSON/i.test(error.message)
+  return /JSON|unterminated|unexpected end|end of JSON|incomplete|max.output|unvollständig/i.test(error.message)
 }
 
 async function askOpenAIJsonWithRetry<T>(options: {

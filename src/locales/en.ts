@@ -212,6 +212,7 @@ const en = {
     addPlaceholder: 'Add your own item',
     sectionPlaceholder: 'Misc',
     loadError: 'Shopping list could not be loaded',
+    fallbackHint: 'You can try again or add items manually below.',
     pricePlaceholder: 'Price € optional',
     add: 'Add',
     noList: 'No shopping list yet.',

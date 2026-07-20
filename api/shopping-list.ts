@@ -42,11 +42,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    console.info('shopping-list API started', { selectedCount: selectedTiles.length, language })
     const items = await askOpenAIShopping(
       buildSystemShoppingPrompt(language),
       buildShoppingUserMessage(topic, partyDetails, selectedTiles, language),
       buildShoppingUserMessageCompact(topic, partyDetails, selectedTiles, language)
     )
+    if (!Array.isArray(items)) throw new Error('OpenAI response did not contain an items array')
+    console.info('shopping-list API succeeded', { itemCount: items.length })
     res.status(200).json({ items })
   } catch (error) {
     console.error('shopping-list API failed', {

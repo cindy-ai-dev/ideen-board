@@ -213,6 +213,7 @@ const de = {
     addPlaceholder: 'Eigenen Artikel hinzufügen',
     sectionPlaceholder: 'Sonstiges',
     loadError: 'Einkaufsliste konnte nicht geladen werden',
+    fallbackHint: 'Du kannst es erneut versuchen oder unten manuell Artikel hinzufügen.',
     pricePlaceholder: 'Preis € optional',
     add: 'Hinzufügen',
     noList: 'Noch keine Einkaufsliste vorhanden.',

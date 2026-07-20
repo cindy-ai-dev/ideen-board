@@ -25,6 +25,7 @@ interface Props {
   partyDetails?: Pick<PartyDetails, 'budgetLimitEuro'>
   editable?: boolean
   generating?: boolean
+  errorMessage?: string | null
   selectedIdeasCount?: number
   onGenerate?: () => void
   onToggleItem?: (id: string) => void
@@ -37,6 +38,7 @@ export function ShoppingListSection({
   partyDetails,
   editable = false,
   generating = false,
+  errorMessage = null,
   selectedIdeasCount = 0,
   onGenerate,
   onToggleItem,
@@ -143,6 +145,12 @@ export function ShoppingListSection({
 
       {editable && (
         <div className="mt-4 rounded-[1.35rem] border border-amber-100 bg-amber-50/60 p-4 print:hidden">
+          {errorMessage && (
+            <div className="mb-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+              <p className="font-semibold">{errorMessage}</p>
+              <p className="mt-1 text-rose-600">{t('shopping.fallbackHint')}</p>
+            </div>
+          )}
           <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[1fr_180px_140px]">
             <input
               value={label}

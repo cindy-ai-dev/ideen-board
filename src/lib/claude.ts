@@ -57,40 +57,73 @@ async function callOpenAIDirect<T>(
     dangerouslyAllowBrowser: true,
   })
 
-  const response = await client.responses.create({
-    model: MODEL,
-    max_output_tokens: maxOutputTokens,
-    instructions: system,
-    input: userMessage,
-    text: {
-      format: {
-        type: 'json_schema',
-        name,
-        strict: true,
-        schema,
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 45_000)
+  try {
+    const response = await client.responses.create({
+      model: MODEL,
+      max_output_tokens: maxOutputTokens,
+      instructions: system,
+      input: userMessage,
+      text: {
+        format: {
+          type: 'json_schema',
+          name,
+          strict: true,
+          schema,
+        },
       },
-    },
-  })
+    }, { signal: controller.signal })
 
-  if (!response.output_text) {
-    throw new Error('Keine Antwort von der API erhalten')
+    if (!response.output_text) {
+      throw new Error(`Unvollständige JSON-Antwort von OpenAI (${response.status})`)
+    }
+    try {
+      return JSON.parse(response.output_text) as T
+    } catch (error) {
+      console.error('[OpenAI] Invalid JSON response', { name, output: response.output_text, error })
+      throw new Error('Ungültige JSON-Antwort von OpenAI', { cause: error })
+    }
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('Die KI-Anfrage hat zu lange gedauert. Bitte erneut versuchen.')
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
   }
-  return JSON.parse(response.output_text) as T
 }
 
 function isTruncatedJsonError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
-  return /JSON|unterminated|unexpected end|end of JSON/i.test(error.message)
+  return /JSON|unterminated|unexpected end|end of JSON|incomplete|max.output|unvollständig/i.test(error.message)
 }
 
 async function callProxy<T>(endpoint: string, body: object): Promise<T> {
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) throw new Error('Ideen konnten nicht geladen werden')
-  return (await res.json()) as T
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 50_000)
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    const payload: unknown = await res.json().catch((error) => {
+      console.error('[API] Invalid JSON response', { endpoint, status: res.status, error })
+      throw new Error('Der Server hat eine ungültige Antwort geliefert.')
+    })
+    if (!res.ok) {
+      const message = typeof payload === 'object' && payload !== null && 'error' in payload && typeof payload.error === 'string'
+        ? payload.error
+        : `Anfrage fehlgeschlagen (HTTP ${res.status})`
+      throw new Error(message)
+    }
+    return payload as T
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('Die Anfrage hat zu lange gedauert. Bitte erneut versuchen.')
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
 }
 
 function toTiles(ideas: RawIdea[], boardId: string, forceCategory?: string): Tile[] {
@@ -185,6 +218,7 @@ export async function generateShoppingList(
   language: string = 'de'
 ): Promise<RawShoppingItem[]> {
   const promptLanguage = normalizePromptLanguage(language)
+  console.info('[shopping] Starting AI generation', { selectedIdeasCount: selectedTiles.length, language: promptLanguage })
   if (import.meta.env.DEV) {
     try {
       const result = await callOpenAIDirect<{ items: RawShoppingItem[] }>(
@@ -194,6 +228,7 @@ export async function generateShoppingList(
         'shopping_items',
         2200
       )
+      if (!Array.isArray(result.items)) throw new Error('Die KI-Antwort enthält keine Einkaufsliste.')
       return result.items
     } catch (error) {
       if (!isTruncatedJsonError(error)) throw error
@@ -204,6 +239,7 @@ export async function generateShoppingList(
         'shopping_items',
         1200
       )
+      if (!Array.isArray(retry.items)) throw new Error('Die KI-Antwort enthält keine Einkaufsliste.')
       return retry.items
     }
   }
@@ -214,6 +250,7 @@ export async function generateShoppingList(
     selectedTiles,
     language: promptLanguage,
   })
+  if (!Array.isArray(response.items)) throw new Error('Die Server-Antwort enthält keine Einkaufsliste.')
   return response.items
 }
 
