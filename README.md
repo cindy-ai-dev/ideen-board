@@ -1,32 +1,28 @@
-# React + TypeScript + Vite
+# 🎈 PartyHost
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Planning a kids' party usually means juggling five different apps at once—Pinterest for ideas, ChatGPT for prompts, WhatsApp for group chats, Excel for budgets, and Notes for endless checklists. Things get lost, and it quickly turns into dynamic chaos.
 
-Currently, two official plugins are available:
+I built **PartyHost** to fix this. It’s a single dashboard that acts as the "single source of truth" for family event ops—bringing AI ideation, dynamic timelines, budget tracking, live guest RSVPs, and printable execution together in one place.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Live Demo
+- **Web App:** [https://ideen-board.vercel.app](https://ideen-board.vercel.app)
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## ✨ What PartyHost Does
 
-## Expanding the Oxlint configuration
+* **AI Board Setup (OpenAI GPT-5.6):** Enter a theme (e.g., *"Luna's 7th Birthday Unicorn Party"*) and PartyHost automatically generates tailored activity ideas, a structured timeline, and a shopping list.
+* **1-Click Rain-Check:** Weather forecast showing rain? One click rebuilds the schedule for an indoor backup plan without ruining the event flow.
+* **Budget & RSVP Tracker:** Track shopping expenses against a set budget and manage guest RSVPs in real time with 1-click WhatsApp invites.
+* **1-Click Printable Master Plan:** On party day, parents don't want to tap on phone screens with sticky fingers around. One click generates a clean, high-contrast 1-page PDF summary covering the schedule, contacts, and lists to stick right on the fridge.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+---
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+## 🛠️ How I Built It
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+As a first-time builder, I constructed this full-stack application using the **Codex CLI** to connect and structure the entire architecture.
+
+* **AI Engine:** OpenAI GPT-5.6
+* **Build Tool:** Codex CLI (Session ID: `019f64ab-1685-7350-a3f3-23a15fa616fe`)
+* **Frontend:** React, TypeScript, Tailwind CSS
+* **Database & Hosting:** Neon Postgres, deployed on Vercel
